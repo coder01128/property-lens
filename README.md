@@ -28,19 +28,40 @@ This repo is driven by *build & test tickets* in `docs/tickets/`. Start with **T
 ---
 
 ## 📌 How to Run (Quick Start)
-This repo currently contains only a React component. To run it quickly:
+This repo is now scaffolded as a Vite + React PWA.
 
-1. Create a simple React app (e.g., Vite + React) and drop `inventory-app.jsx` in `src/`.
-2. Render it from `src/main.jsx`:
+1. Install dependencies:
 
-```jsx
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./inventory-app";
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+```bash
+npm install
 ```
 
-3. Run the app via your chosen build tool (e.g. `npm run dev`).
+2. Start the dev server:
 
-> 💡 Optionally, a quick `index.html` + CDN build can be used if you want to prototype without a bundler.
+```bash
+npm run dev
+```
+
+3. Open the shown URL (usually `http://localhost:5173`) in your browser.
+
+### Build for production
+
+```bash
+npm run build
+```
+
+> ✅ When running locally, the app is available as a PWA and will install on mobile devices (icons can be added later in `public/icons/`).
+
+---
+
+## 📦 Publishing to GitHub
+
+To publish this project to GitHub, create a new repository and run:
+
+```bash
+git remote add origin https://github.com/<your-org>/inspect-a-home.git
+git branch -M main
+git push -u origin main
+```
+
+Then add icons in `public/icons/` for better PWA install support.
