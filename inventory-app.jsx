@@ -102,10 +102,13 @@ async function analyzePhoto(b64) {
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization": `Bearer ${import.meta.env.VITE_ANTHROPIC_API_KEY || 'YOUR_CLAUDE_API_KEY_HERE'}`
+      },
       signal: controller.signal,
       body: JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:1200,
+        model:"claude-3-opus-20240229", max_tokens:1200,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},
           {type:"text",text:`Expert property inventory clerk. Analyse this room photo. Return ONLY valid JSON, no markdown:
