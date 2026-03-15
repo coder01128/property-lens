@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { jsPDF } from "jspdf";
 
 /* ═══════════════════════════════════════════════════════════════
    PROPINSPECT ZA  –  Full PWA
@@ -6,23 +7,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
    Features: Google/Apple/Email auth, saved reports, per-item
              condition+defects, working PDF export, signatures
 ═══════════════════════════════════════════════════════════════ */
-
-// ── jsPDF loader ─────────────────────────────────────────────
-const ensureJsPDF = () =>
-  new Promise((res, rej) => {
-    if (window.jspdf?.jsPDF) return res(window.jspdf.jsPDF);
-    const id = "jspdf-cdn";
-    let el = document.getElementById(id);
-    if (!el) {
-      el = document.createElement("script");
-      el.id = id;
-      el.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      document.head.appendChild(el);
-    }
-    el.addEventListener("load", () => res(window.jspdf.jsPDF));
-    el.addEventListener("error", rej);
-    if (el.readyState === "complete") res(window.jspdf.jsPDF);
-  });
 
 // ── Constants ─────────────────────────────────────────────────
 const ROOMS = [
@@ -55,6 +39,47 @@ const CRGB = {
 const uid  = () => Math.random().toString(36).slice(2,9);
 const fmt  = d  => new Date(d).toLocaleDateString("en-ZA",{day:"numeric",month:"short",year:"numeric"});
 
+// ── localStorage Persistence ──────────────────────────────────
+const genReportId = () => {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth()+1).padStart(2,"0"),
+    String(d.getDate()).padStart(2,"0"),
+  ].join("")+"_"+[
+    String(d.getHours()).padStart(2,"0"),
+    String(d.getMinutes()).padStart(2,"0"),
+    String(d.getSeconds()).padStart(2,"0"),
+  ].join("");
+};
+
+const saveProfileLS  = u => { try{ localStorage.setItem("user_profile", JSON.stringify(u)); }catch{} };
+const loadProfileLS  = () => { try{ return JSON.parse(localStorage.getItem("user_profile")); }catch{ return null; } };
+const saveAiPref     = v => { try{ localStorage.setItem("ai_enabled", JSON.stringify(v)); }catch{} };
+const loadAiPref     = () => { try{ const v=localStorage.getItem("ai_enabled"); return v===null?true:JSON.parse(v); }catch{ return true; } };
+
+const saveReportLS = report => {
+  try {
+    localStorage.setItem(`report_${report.id}`, JSON.stringify(report));
+    let idx = [];
+    try { idx = JSON.parse(localStorage.getItem("report_index")||"[]"); } catch{}
+    const entry = { id:report.id, address:report.address, tenant:report.tenant, date:report.date };
+    const pos = idx.findIndex(r=>r.id===report.id);
+    if(pos>=0) idx[pos]=entry; else idx.unshift(entry);
+    localStorage.setItem("report_index", JSON.stringify(idx.slice(0,50)));
+  } catch(e){ console.error("Save failed",e); }
+};
+
+const loadReportsLS = () => {
+  try {
+    const idx = JSON.parse(localStorage.getItem("report_index")||"[]");
+    return idx
+      .map(e=>{ try{ return JSON.parse(localStorage.getItem(`report_${e.id}`)); }catch{ return null; } })
+      .filter(Boolean)
+      .sort((a,b)=>b.date>a.date?1:-1);
+  } catch { return []; }
+};
+
 function resizeImg(dataUrl, maxW=1000) {
   return new Promise(res => {
     const img = new Image();
@@ -69,10 +94,16 @@ function resizeImg(dataUrl, maxW=1000) {
   });
 }
 
+const AI_TIMEOUT_MS = 15000;
+
 async function analyzePhoto(b64) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      signal: controller.signal,
       body: JSON.stringify({
         model:"claude-sonnet-4-20250514", max_tokens:1200,
         messages:[{role:"user",content:[
@@ -82,22 +113,26 @@ async function analyzePhoto(b64) {
         ]}]
       })
     });
+    clearTimeout(timer);
+    if(!r.ok) throw new Error(`API error ${r.status}`);
     const d = await r.json();
     const txt = d.content?.find(b=>b.type==="text")?.text||"{}";
-    return JSON.parse(txt.replace(/```[\s\S]*?```/g,"").trim());
-  } catch {
+    return { ...JSON.parse(txt.replace(/```[\s\S]*?```/g,"").trim()), aiError: false };
+  } catch(e) {
+    clearTimeout(timer);
+    const timedOut = e?.name==="AbortError";
     return {
-      roomType:"Room", overallCondition:"Good", cleanliness:"Clean",
-      items:[{name:"Unable to analyse — fill manually",condition:"Good",defects:""}],
-      generalNotes:"Manual inspection required.", flags:[]
+      aiError: true,
+      aiErrorMsg: timedOut ? "AI timed out — fill manually" : "AI unavailable — fill manually",
+      roomType:"Room", overallCondition:"", cleanliness:"",
+      items:[], generalNotes:"", flags:[]
     };
   }
 }
 
 // ── PDF Builder ───────────────────────────────────────────────
 async function exportPDF(inspection, signatures) {
-  const jsPDF = await ensureJsPDF();
-  const doc   = new jsPDF({ unit:"mm", format:"a4" });
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
   const W=210, M=16;
   let y=0;
   const G=[200,169,110], Dk=[12,12,22], Lt=[240,237,232], Gr=[120,120,135];
@@ -403,6 +438,11 @@ export default function App() {
   const [signatures, setSignatures] = useState({tenant:null,landlord:null});
   const [sigOpen,    setSigOpen]    = useState(null);
   const [pdfStatus,  setPdfStatus]  = useState("idle"); // idle|loading|done|error
+  const [saveMsg,    setSaveMsg]    = useState("");
+  const [headerErrors, setHeaderErrors] = useState({});
+  const [roomCompleteErr, setRoomCompleteErr] = useState("");
+  const [headerDraft, setHeaderDraft] = useState({address:"",tenant:"",date:""});
+  const [aiEnabled, setAiEnabled] = useState(loadAiPref);
 
   // Auth form state
   const [authMode,setAuthMode]=useState("signin"); // signin|signup
@@ -413,7 +453,17 @@ export default function App() {
   const completedIds= insp ? Object.keys(insp.rooms||{}).filter(r=>insp.rooms[r]?.completed) : [];
   const progress    = completedIds.length/ROOMS.length;
 
-  // ── Mock Auth ──────────────────────────────────────────────
+  // ── Auto-login from saved profile ──────────────────────────
+  useEffect(()=>{
+    const profile = loadProfileLS();
+    if(profile){
+      setUser(profile);
+      setReports(loadReportsLS());
+      setScreen("dashboard");
+    }
+  },[]);
+
+  // ── Auth ────────────────────────────────────────────────────
   const handleAuth = (provider) => {
     let u;
     if(provider==="email"){
@@ -423,19 +473,19 @@ export default function App() {
       u={name:provider==="google"?"Google User":"Apple User", email:`user@${provider}.com`, provider};
     }
     setUser(u);
-    // Load mock saved reports
-    setReports([
-      {id:"r1",address:"14 Bree St, Cape Town",tenant:"Sipho Ndlovu",date:"2026-03-01",rooms:{},completed:true,inspector:u.name},
-      {id:"r2",address:"7 Main Rd, Johannesburg",tenant:"Fatima Moosa",date:"2026-02-14",rooms:{},completed:false,inspector:u.name},
-    ]);
+    saveProfileLS(u);
+    setReports(loadReportsLS());
     setScreen("dashboard");
   };
 
   const startNewInspection = () => {
+    const today=new Date().toISOString().split("T")[0];
     setInsp({
-      id:uid(), address:"", tenant:"", date:new Date().toISOString().split("T")[0],
+      id:genReportId(), address:"", tenant:"", date:today,
       inspector:user?.name||"", rooms:{}, completed:false
     });
+    setHeaderDraft({address:"",tenant:"",date:today});
+    setHeaderErrors({});
     setSignatures({tenant:null,landlord:null});
     setScreen("inspection");
   };
@@ -466,7 +516,7 @@ export default function App() {
           photos:[...(prev.rooms[activeRoom]?.photos||[]),url]
         }}
       }));
-      if(runAI&&!insp?.rooms?.[activeRoom]?.aiAnalysed){
+      if(runAI&&aiEnabled&&!insp?.rooms?.[activeRoom]?.aiAnalysed){
         setAnalyzing(true);
         const ai=await analyzePhoto(url.split(",")[1]);
         setAnalyzing(false);
@@ -474,12 +524,14 @@ export default function App() {
           const r=prev.rooms[activeRoom]||{};
           return {...prev,rooms:{...prev.rooms,[activeRoom]:{
             ...r,
-            overallCondition:r.overallCondition||ai.overallCondition,
-            cleanliness:r.cleanliness||ai.cleanliness,
-            items:r.items?.length?r.items:(ai.items||[]).map(it=>({...it,id:uid()})),
-            generalNotes:r.generalNotes||ai.generalNotes,
-            flags:r.flags||ai.flags,
+            overallCondition:r.overallCondition||(ai.aiError?"":ai.overallCondition),
+            cleanliness:r.cleanliness||(ai.aiError?"":ai.cleanliness),
+            items:r.items?.length?r.items:(ai.aiError?[]:(ai.items||[]).map(it=>({...it,id:uid()}))),
+            generalNotes:r.generalNotes||(ai.aiError?"":ai.generalNotes),
+            flags:r.flags||(ai.aiError?[]:ai.flags),
             aiAnalysed:true,
+            aiError:!!ai.aiError,
+            aiErrorMsg:ai.aiErrorMsg||null,
           }}};
         });
       }
@@ -519,6 +571,13 @@ export default function App() {
   };
 
   const markRoomComplete=()=>{
+    const hasItems=(roomData.items||[]).some(it=>it.name?.trim());
+    const hasNotes=roomData.generalNotes?.trim();
+    if(!hasItems&&!hasNotes){
+      setRoomCompleteErr("Add at least one item or a general note before completing this room.");
+      return;
+    }
+    setRoomCompleteErr("");
     setInsp(prev=>({...prev,rooms:{...prev.rooms,[activeRoom]:{...prev.rooms[activeRoom],completed:true}}}));
     setActiveRoom(null); setScreen("inspection");
   };
@@ -527,6 +586,15 @@ export default function App() {
     setPdfStatus("loading");
     try{ await exportPDF(insp,signatures); setPdfStatus("done"); setTimeout(()=>setPdfStatus("idle"),3500); }
     catch(e){ console.error(e); setPdfStatus("error"); setTimeout(()=>setPdfStatus("idle"),4000); }
+  };
+
+  const handleSaveReport=()=>{
+    const updated={...insp, completed:completedIds.length===ROOMS.length};
+    setInsp(updated);
+    saveReportLS(updated);
+    setReports(loadReportsLS());
+    setSaveMsg("Report saved successfully!");
+    setTimeout(()=>setSaveMsg(""),3000);
   };
 
   // ── Global CSS ─────────────────────────────────────────────
@@ -736,26 +804,44 @@ export default function App() {
         {/* Property form if address not yet set */}
         {!insp?.address?(
           <div style={T.card}>
-            <label style={T.lbl}>Property Address</label>
-            <input style={T.inp} placeholder="e.g. 14 Bree Street, Cape Town" defaultValue={insp?.address}
-              onBlur={e=>setInsp(p=>({...p,address:e.target.value}))}/>
-            <label style={T.lbl}>Tenant Name</label>
-            <input style={T.inp} placeholder="e.g. Sipho Ndlovu" defaultValue={insp?.tenant}
-              onBlur={e=>setInsp(p=>({...p,tenant:e.target.value}))}/>
-            <label style={T.lbl}>Inspection Date</label>
-            <input style={T.inp} type="date" value={insp?.date}
-              onChange={e=>setInsp(p=>({...p,date:e.target.value}))}/>
+            <label style={T.lbl}>Property Address *</label>
+            <input style={{...T.inp,...(headerErrors.address?{borderColor:"#f87171"}:{})}}
+              placeholder="e.g. 14 Bree Street, Cape Town"
+              value={headerDraft.address}
+              onChange={e=>{setHeaderDraft(p=>({...p,address:e.target.value}));setHeaderErrors(p=>({...p,address:""}));}}/>
+            {headerErrors.address&&<div style={{color:"#f87171",fontSize:12,marginTop:-8,marginBottom:8}}>{headerErrors.address}</div>}
+            <label style={T.lbl}>Tenant Name *</label>
+            <input style={{...T.inp,...(headerErrors.tenant?{borderColor:"#f87171"}:{})}}
+              placeholder="e.g. Sipho Ndlovu"
+              value={headerDraft.tenant}
+              onChange={e=>{setHeaderDraft(p=>({...p,tenant:e.target.value}));setHeaderErrors(p=>({...p,tenant:""}));}}/>
+            {headerErrors.tenant&&<div style={{color:"#f87171",fontSize:12,marginTop:-8,marginBottom:8}}>{headerErrors.tenant}</div>}
+            <label style={T.lbl}>Inspection Date *</label>
+            <input style={{...T.inp,...(headerErrors.date?{borderColor:"#f87171"}:{})}}
+              type="date" value={headerDraft.date}
+              onChange={e=>{setHeaderDraft(p=>({...p,date:e.target.value}));setHeaderErrors(p=>({...p,date:""}));}}/>
+            {headerErrors.date&&<div style={{color:"#f87171",fontSize:12,marginTop:-8,marginBottom:8}}>{headerErrors.date}</div>}
             <button style={{...T.btn,...T.gold}} onClick={()=>{
-              const a=document.querySelector("input[placeholder*='Bree']")?.value||"";
-              const t=document.querySelector("input[placeholder*='Sipho']")?.value||"";
-              if(!a){alert("Please enter a property address.");return;}
-              setInsp(p=>({...p,address:a,tenant:t}));
+              const errs={};
+              if(!headerDraft.address.trim()) errs.address="Property address is required.";
+              if(!headerDraft.tenant.trim()) errs.tenant="Tenant name is required.";
+              if(!headerDraft.date) errs.date="Inspection date is required.";
+              if(Object.keys(errs).length){setHeaderErrors(errs);return;}
+              setHeaderErrors({});
+              setInsp(p=>({...p,address:headerDraft.address,tenant:headerDraft.tenant,date:headerDraft.date}));
             }}>Begin Inspection →</button>
           </div>
         ):(
           <>
             <div style={T.prog}><div style={{...T.progFill,width:`${progress*100}%`}}/></div>
-            <div style={{fontSize:12,color:"#555",marginBottom:16,fontWeight:500}}>Tap any room — complete in any order</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+              <div style={{fontSize:12,color:"#555",fontWeight:500}}>Tap any room — complete in any order</div>
+              <button onClick={()=>{const v=!aiEnabled;setAiEnabled(v);saveAiPref(v);}}
+                style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:20,border:`1px solid ${aiEnabled?"rgba(200,169,110,0.4)":"rgba(255,255,255,0.1)"}`,background:aiEnabled?"rgba(200,169,110,0.1)":"rgba(255,255,255,0.04)",color:aiEnabled?"#c8a96e":"#555",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                <span style={{width:8,height:8,borderRadius:"50%",background:aiEnabled?"#c8a96e":"#444",display:"inline-block"}}/>
+                AI {aiEnabled?"ON":"OFF"}
+              </button>
+            </div>
 
             {ROOMS.map((room,i)=>{
               const done=insp.rooms[room.id]?.completed;
@@ -805,10 +891,30 @@ export default function App() {
         <button style={T.backBtn} onClick={()=>{setScreen("inspection");setAnalyzing(false);}}>← Back to Rooms</button>
         <div style={T.logo}>{currentRoom?.icon} {currentRoom?.label}</div>
         <div style={{...T.ttl,fontSize:22}}>Room <span style={{color:"#c8a96e"}}>Inspection</span></div>
-        {roomData.aiAnalysed&&<div style={{fontSize:11,color:"#c8a96e",marginTop:6,fontWeight:600,letterSpacing:"0.05em"}}>✦ AI-FILLED · Review &amp; Confirm</div>}
+        {roomData.aiAnalysed&&(roomData.aiError
+          ?<div style={{fontSize:11,color:"#f97316",marginTop:6,fontWeight:600,letterSpacing:"0.05em"}}>⚠ {roomData.aiErrorMsg||"AI unavailable"} · Fill manually</div>
+          :<div style={{fontSize:11,color:"#c8a96e",marginTop:6,fontWeight:600,letterSpacing:"0.05em"}}>✦ AI-FILLED · Review &amp; Confirm</div>
+        )}
       </div>
 
       <div style={T.body}>
+        {/* Room navigation */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:4,WebkitOverflowScrolling:"touch",scrollbarWidth:"none"}}>
+          {ROOMS.map(r=>{
+            const done=insp?.rooms?.[r.id]?.completed;
+            const active=r.id===activeRoom;
+            return (
+              <button key={r.id} onClick={()=>{setRoomCompleteErr("");setActiveRoom(r.id);}}
+                style={{flexShrink:0,padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap",
+                  background: active?"#c8a96e":done?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.06)",
+                  color: active?"#0a0a0f":done?"#4ade80":"#888",
+                  border: active?"none":done?"1px solid rgba(34,197,94,0.3)":"1px solid rgba(255,255,255,0.1)"}}>
+                {r.icon} {r.label}
+              </button>
+            );
+          })}
+        </div>
+
         {analyzing&&(
           <div style={T.aiBar}><div style={T.spin}/>Analysing room with Claude AI…</div>
         )}
@@ -864,8 +970,13 @@ export default function App() {
         <div style={T.sec}>General Notes</div>
         <textarea style={T.ta} placeholder="Additional observations…" value={roomData.generalNotes||""} onChange={e=>updateRoomField("generalNotes",e.target.value)}/>
 
+        {roomCompleteErr&&(
+          <div style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:10,padding:"10px 14px",color:"#f87171",fontSize:13,marginTop:12,marginBottom:4}}>
+            ⚠ {roomCompleteErr}
+          </div>
+        )}
         <button style={{...T.btn,...T.gold,marginTop:8}} onClick={markRoomComplete}>✓ Mark Room Complete</button>
-        <button style={{...T.btn,...T.ghost}} onClick={()=>setScreen("inspection")}>Save &amp; Return to Rooms</button>
+        <button style={{...T.btn,...T.ghost}} onClick={()=>{setRoomCompleteErr("");setScreen("inspection");}}>Save &amp; Return to Rooms</button>
       </div>
     </div>
   );
@@ -972,9 +1083,22 @@ export default function App() {
           );
         })}
 
+        {/* Save Report */}
+        {saveMsg&&(
+          <div style={{padding:"12px 16px",background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.3)",borderRadius:12,color:"#4ade80",fontSize:14,fontWeight:600,marginTop:16,textAlign:"center"}}>
+            ✓ {saveMsg}
+          </div>
+        )}
+        <button
+          style={{...T.btn,...T.gold,marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}
+          onClick={handleSaveReport}
+        >
+          💾 Save Report
+        </button>
+
         {/* PDF Export */}
         <button
-          style={{...T.btn,...(pdfStatus==="done"?{...T.gold,background:"#22c55e"}:T.gold),marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:10,opacity:pdfStatus==="loading"?0.7:1,cursor:pdfStatus==="loading"?"not-allowed":"pointer"}}
+          style={{...T.btn,...(pdfStatus==="done"?{...T.gold,background:"#22c55e"}:T.ghost),marginTop:0,display:"flex",alignItems:"center",justifyContent:"center",gap:10,opacity:pdfStatus==="loading"?0.7:1,cursor:pdfStatus==="loading"?"not-allowed":"pointer"}}
           onClick={pdfStatus==="idle"||pdfStatus==="error"?handleExportPDF:undefined}
           disabled={pdfStatus==="loading"}
         >

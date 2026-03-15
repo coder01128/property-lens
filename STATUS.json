@@ -1,0 +1,40 @@
+{
+  "projectName": "Property Lens",
+  "version": "0.2.0",
+  "lastUpdated": "2026-03-15T21:30:00Z",
+  "currentPhase": "MVP Development — Ticket 0011 Complete",
+  "summary": "All 11 MVP tickets complete. Ticket 0011 delivered: photo compression+preview modal, AI vision toggle in Settings, PRD-aligned condition colours, smooth theme transitions, and ARIA accessibility on AddRoomSheet and BottomNav FAB. 259 tests passing.",
+  "techStack": "React 18 + Vite 5 PWA, React Router v6, Tailwind CSS v3, Dexie.js v4 (IndexedDB), jsPDF 4, Claude Haiku (AI vision), Supabase JS v2 (sync, gated on VITE_SUPABASE_URL), Google Places API (optional), SW cache-first assets",
+  "recentChanges": [
+    "Ticket 0011: Photo compression (canvas, 1200px max, JPEG 0.85) + preview/confirm modal before Dexie save",
+    "Ticket 0011: Settings — AI Analysis section with enable/disable toggle (pl_ai_enabled key)",
+    "Ticket 0011: preferences.js — getAiEnabled/setAiEnabled; enqueueRoom respects preference",
+    "Ticket 0011: Condition colours synced to PRD §4.3.3 (Good=#06D6A0, Fair=#FFD166, Damaged=#EF476F)",
+    "Ticket 0011: Body theme transition (background-color + color, 200ms ease)",
+    "Ticket 0011: AddRoomSheet — role=dialog, aria-modal=true, aria-label on container + close button",
+    "Ticket 0011: BottomNav FAB — aria-label='New Inspection'",
+    "ticket-0011.test.js — 35 tests (compression, AI pref, colour tokens, a11y)"
+  ],
+  "blockers": [
+    "VITE_ANTHROPIC_KEY not set — AI analysis inactive until .env configured",
+    "VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY not set — sync inactive until Supabase project created",
+    "Client-side API keys need server-side proxy before production (Phase 2)",
+    "Rooms/items/photos cloud sync deferred to Phase 2"
+  ],
+  "nextSteps": [
+    "Phase 2: Supabase project setup (auth, rooms/items/photos cloud sync)",
+    "Phase 2: Server-side Anthropic proxy (remove VITE_ANTHROPIC_KEY from client)",
+    "Phase 2: Rooms/items/photos sync (chunked photo upload)",
+    "Tier gating: PDF watermark removal for paid plans",
+    "Onboarding: first-run wizard for new inspectors"
+  ],
+  "metrics": {
+    "componentsBuilt": 28,
+    "screensImplemented": 7,
+    "ticketsTotal": 11,
+    "ticketsDone": 11,
+    "ticketsPending": 0,
+    "testsWritten": 259,
+    "openIssues": 4
+  }
+}
