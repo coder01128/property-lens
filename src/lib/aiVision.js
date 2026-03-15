@@ -7,7 +7,7 @@
  */
 
 const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
-const MODEL         = 'claude-haiku-4-5-20251001';
+const MODEL         = 'claude-sonnet-4-6';
 const TIMEOUT_MS    = 15_000;
 const MAX_PHOTOS    = 4;   // max overview photos per API call (cost control)
 const MAX_PX        = 800; // longest-edge resize before upload

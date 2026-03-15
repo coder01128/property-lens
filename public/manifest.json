@@ -1,21 +1,26 @@
 {
-  "name": "Inspect‑a‑Home",
-  "short_name": "InspectHome",
-  "description": "A simplified home inspection PWA.",
+  "name": "Property Lens",
+  "short_name": "PropertyLens",
+  "description": "AI-powered property inspection app for South African rental agents.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "theme_color": "#c8a96e",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "business"],
+  "lang": "en-ZA",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
