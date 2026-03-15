@@ -121,7 +121,18 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
             </p>
           )}
           {overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError && (
-            <p className="text-xs text-gold mt-1">⏳ AI analysis queued…</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-gold">⏳ AI analysis queued…</p>
+              <button
+                onClick={() => enqueueRoom(inspectionId, roomId).then(() => processQueue())}
+                className="text-xs text-gold underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {room.aiError && (
+            <p className="text-xs text-red-400 mt-1">⚠ AI analysis failed: {room.aiErrorMsg || 'unknown error'}</p>
           )}
         </Section>
 

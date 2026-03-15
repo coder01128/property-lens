@@ -131,8 +131,14 @@ async function _processEntry(entry) {
         await db.photos.update(photo.id, { aiProcessedAt: now() });
       }
     } else {
-      // AI returned null — network issue or no key; put back to pending to retry later
-      await db.aiQueue.update(entry.id, { status: 'pending', updatedAt: now() });
+      // AI returned null — surface as an error so the user can see it
+      const msg = !import.meta.env.VITE_ANTHROPIC_KEY
+        ? 'No API key configured (VITE_ANTHROPIC_KEY)'
+        : 'AI returned no result — check API key or network';
+      await db.aiQueue.update(entry.id, { status: 'error', error: msg, updatedAt: now() });
+      await db.rooms.update(entry.roomId, {
+        aiError: true, aiErrorMsg: msg, aiAnalysed: true, updatedAt: now(),
+      });
       return;
     }
 
