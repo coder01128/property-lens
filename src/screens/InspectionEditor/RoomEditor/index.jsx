@@ -510,10 +510,10 @@ function KeyCard({ label, count, onClick, onRemove }) {
   return (
     <button
       onClick={onClick}
-      className={`relative text-left p-3 rounded-card border transition-all active:opacity-80 ${
+      className={`relative text-left p-3 rounded-card border-2 transition-all active:scale-95 ${
         selected
-          ? 'bg-gold/10 border-gold/60 dark:bg-gold/10 dark:border-gold/50'
-          : 'bg-gray-50 dark:bg-surface-card border-gray-200 dark:border-surface-border'
+          ? 'bg-gold/10 border-gold dark:bg-gold/15 dark:border-gold'
+          : 'bg-gray-50 dark:bg-surface-raised border-gray-300 dark:border-gray-500 dark:hover:border-gold/60'
       }`}
     >
       <span className="block text-xs font-semibold text-gray-800 dark:text-gray-100 leading-tight pr-4">
@@ -592,12 +592,16 @@ function PhotoStrip({ photos, roomId, inspectionId, role }) {
   const [preview, setPreview] = useState(null); // compressed dataUrl pending confirm
   const [btnScale, setBtnScale] = useState(1);
 
-  // Expand-then-shrink animation on first mount to draw attention
+  // Double-pulse animation on mount when no photos yet
   useEffect(() => {
-    if (photos.length > 0) return; // only animate when no photos yet
-    const t1 = setTimeout(() => setBtnScale(1.2), 120);
-    const t2 = setTimeout(() => setBtnScale(1),   550);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    if (photos.length > 0) return;
+    const timers = [
+      setTimeout(() => setBtnScale(1.2),  150),
+      setTimeout(() => setBtnScale(1.0),  500),
+      setTimeout(() => setBtnScale(1.18), 750),
+      setTimeout(() => setBtnScale(1.0), 1100),
+    ];
+    return () => timers.forEach(clearTimeout);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = async (e) => {
@@ -635,27 +639,39 @@ function PhotoStrip({ photos, roomId, inspectionId, role }) {
           onRetake={() => setPreview(null)}
         />
       )}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-        {photos.map((p) => (
-          <div key={p.id} className="relative shrink-0">
-            <img src={p.dataUrl} className="w-20 h-16 object-cover rounded-lg border border-gray-200 dark:border-surface-border" alt="" />
-            <button
-              onClick={() => db.photos.delete(p.id)}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 border-2 border-white dark:border-surface text-white text-xs font-bold flex items-center justify-center"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        <label
-          className="shrink-0 w-24 h-20 rounded-xl border-2 border-gold bg-gold/10 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/20 active:opacity-80 transition-colors"
-          style={{ transform: `scale(${btnScale})`, transition: 'transform 0.35s ease-in-out' }}
-        >
-          <span className="text-3xl">📷</span>
-          <span className="text-xs text-gold font-bold mt-1">Add Photo</span>
-          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-        </label>
-      </div>
+      {photos.length === 0 ? (
+        /* No photos yet — centred call-to-action */
+        <div className="flex justify-center py-2">
+          <label
+            className="w-40 h-24 rounded-xl border-2 border-gold bg-gold/10 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/20 active:opacity-80 transition-colors"
+            style={{ transform: `scale(${btnScale})`, transition: 'transform 0.32s ease-in-out' }}
+          >
+            <span className="text-4xl">📷</span>
+            <span className="text-sm text-gold font-bold mt-1">Add Photo</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          </label>
+        </div>
+      ) : (
+        /* Strip with thumbnails + add button */
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+          {photos.map((p) => (
+            <div key={p.id} className="relative shrink-0">
+              <img src={p.dataUrl} className="w-20 h-16 object-cover rounded-lg border border-gray-200 dark:border-surface-border" alt="" />
+              <button
+                onClick={() => db.photos.delete(p.id)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 border-2 border-white dark:border-surface text-white text-xs font-bold flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <label className="shrink-0 w-24 h-20 rounded-xl border-2 border-gold bg-gold/10 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/20 active:opacity-80 transition-colors">
+            <span className="text-3xl">📷</span>
+            <span className="text-xs text-gold font-bold mt-1">Add Photo</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          </label>
+        </div>
+      )}
     </>
   );
 }
