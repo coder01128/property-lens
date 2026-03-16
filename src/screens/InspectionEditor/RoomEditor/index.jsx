@@ -121,19 +121,33 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
             </p>
           )}
           {overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError && (
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-gold">⏳ AI analysis queued…</p>
+            <p className="text-xs text-gold mt-1">⏳ AI analysis queued…</p>
+          )}
+          {room.aiError && (
+            <div className="mt-1 space-y-1">
+              <p className="text-xs text-red-400">⚠ AI analysis failed: {room.aiErrorMsg || 'unknown error'}</p>
               <button
-                onClick={() => enqueueRoom(inspectionId, roomId).then(() => processQueue())}
+                onClick={() => {
+                  updateRoom({ aiError: false, aiErrorMsg: null, aiAnalysed: false });
+                  enqueueRoom(inspectionId, roomId).then(() => processQueue());
+                }}
                 className="text-xs text-gold underline"
               >
                 Retry
               </button>
             </div>
           )}
-          {room.aiError && (
-            <p className="text-xs text-red-400 mt-1">⚠ AI analysis failed: {room.aiErrorMsg || 'unknown error'}</p>
-          )}
+        </Section>
+
+        {/* General notes — just below photos for quick capture */}
+        <Section title="General Notes">
+          <textarea
+            className="w-full px-3 py-2.5 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+            rows={3}
+            placeholder="Additional observations for this room…"
+            value={room.overallNotes || ''}
+            onChange={e => updateRoom({ overallNotes: e.target.value })}
+          />
         </Section>
 
         {/* AI Suggestion banner */}
@@ -188,17 +202,6 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
               ))}
             </div>
           )}
-        </Section>
-
-        {/* General notes */}
-        <Section title="General Notes">
-          <textarea
-            className="w-full px-3 py-2.5 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
-            rows={3}
-            placeholder="Additional observations for this room…"
-            value={room.overallNotes || ''}
-            onChange={e => updateRoom({ overallNotes: e.target.value })}
-          />
         </Section>
 
         {/* Validation error */}

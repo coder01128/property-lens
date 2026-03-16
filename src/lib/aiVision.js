@@ -117,8 +117,9 @@ Rules:
     clearTimeout(timer);
 
     if (!res.ok) {
-      console.warn('[AI] API error', res.status);
-      return null;
+      const errBody = await res.text().catch(() => '');
+      const errMsg  = (() => { try { return JSON.parse(errBody)?.error?.message || errBody; } catch { return errBody; } })();
+      throw new Error(`API ${res.status}: ${errMsg}`);
     }
 
     const data  = await res.json();
