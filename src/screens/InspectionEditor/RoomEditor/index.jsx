@@ -706,7 +706,7 @@ function RatingPills({ options, value, colors, onChange }) {
 function ItemCard({ item, onChange, onRemove }) {
   const isEmpty = !item.name?.trim();
   return (
-    <div id={`item-${item.id}`} className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border space-y-2">
+    <div id={`item-${item.id}`} className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border-2 border-dashed border-gray-300 dark:border-gray-500 space-y-2">
       <div className="flex items-center gap-2">
         <input
           className={`flex-1 text-sm font-medium text-gray-900 dark:text-white outline-none placeholder-gray-400 transition-all ${
@@ -793,14 +793,12 @@ function MicButton({ value, onAppend, className = '' }) {
       type="button"
       onMouseDown={e => e.preventDefault()} // prevent textarea blur
       onClick={toggle}
-      className={`p-2 rounded-full transition-colors ${
-        listening
-          ? 'text-red-500 animate-pulse'
-          : 'text-gray-400 dark:text-gray-500 hover:text-gold'
+      className={`p-1.5 rounded-full transition-colors ${
+        listening ? 'text-red-500 animate-pulse' : 'text-gold'
       } ${className}`}
       aria-label={listening ? 'Stop recording' : 'Dictate'}
     >
-      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+      <svg className="w-9 h-9" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.364 9.172a.75.75 0 0 1 .736.912A7.001 7.001 0 0 1 12.75 17.92V20h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5v-2.08a7.001 7.001 0 0 1-6.35-6.836.75.75 0 0 1 1.486-.176A5.5 5.5 0 0 0 17.5 11a5.47 5.47 0 0 0-.048-.64.75.75 0 0 1 .912-.188z"/>
       </svg>
     </button>
@@ -813,7 +811,7 @@ function Section({ title, badge, action, children }) {
     <div>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</h3>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-gold underline underline-offset-4">{title}</h3>
           {badge && (
             <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-surface-border px-2 py-0.5 rounded-full">{badge}</span>
           )}
