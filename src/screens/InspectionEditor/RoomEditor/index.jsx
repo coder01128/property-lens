@@ -500,8 +500,9 @@ function ItemCard({ item, onChange, onRemove }) {
       </div>
 
       {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
-        <input
-          className="w-full text-xs bg-transparent text-gray-600 dark:text-gray-300 outline-none placeholder-gray-400 border-b border-gray-200 dark:border-surface-border focus:border-gold pb-0.5"
+        <textarea
+          className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-surface-overlay border border-amber-300 dark:border-amber-700/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+          rows={2}
           placeholder="Describe the defect or issue…"
           value={item.defects || ''}
           onChange={e => onChange({ defects: e.target.value })}
