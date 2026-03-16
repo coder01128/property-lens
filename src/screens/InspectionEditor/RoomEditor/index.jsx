@@ -183,7 +183,7 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
         <Section
           title="Inspection Items"
           action={
-            <button onClick={addItem} className="text-xs font-bold text-gold">+ Add Item</button>
+            <button onClick={addItem} className="text-xs font-bold text-gold px-3 py-2 -mr-1 active:opacity-70">+ Add Item</button>
           }
         >
           {items.length === 0 ? (
