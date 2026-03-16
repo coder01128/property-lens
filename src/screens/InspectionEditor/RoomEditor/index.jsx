@@ -48,14 +48,11 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
   );
 
   const handleAcceptSuggestion = async () => {
-    const patch = {
+    await updateRoom({
       overallCondition: room.aiSuggestedCondition,
-      overallNotes:     room.overallNotes
-        ? room.overallNotes
-        : room.aiSuggestedNotes, // only pre-fill notes if none entered
-      aiSuggested: false,
-    };
-    await updateRoom(patch);
+      overallNotes:     room.aiSuggestedNotes || room.overallNotes || '',
+      aiSuggested:      false,
+    });
   };
 
   const handleDismissSuggestion = async () => {
