@@ -317,11 +317,59 @@ function AISuggestionBanner({ room, onAccept, onDismiss }) {
   );
 }
 
+// ─── Key presets ──────────────────────────────────────────────────────────
+const KEY_PRESETS = [
+  'Driveway Gate Key',
+  'Driveway Gate Remote',
+  'Front Door Security Gate Key',
+  'Front Door Key',
+  'Back Door Key',
+  'Patio Door Key',
+  'Security Alarm / Panic Button Remote',
+];
+
+// Serialise selections [{label,count}] → multiline description string
+function selectionsToText(selections) {
+  return selections
+    .filter(s => s.count > 0)
+    .map(s => s.count > 1 ? `${s.count} × ${s.label}` : s.label)
+    .join('\n');
+}
+
 // ─── Special room layout (Keys / Electricity Meter / Water Meter) ─────────
 function SpecialRoomContent({ room, photos, roomId, inspectionId, onUpdate }) {
-  const isMeter = room.specialType === 'electricity_meter' || room.specialType === 'water_meter';
-  const isKeys  = room.specialType === 'keys';
+  const isMeter  = room.specialType === 'electricity_meter' || room.specialType === 'water_meter';
+  const isKeys   = room.specialType === 'keys';
   const meterUnit = room.specialType === 'electricity_meter' ? 'kWh' : 'kL';
+
+  // Parse persisted key selections from room record
+  const selections = (() => { try { return JSON.parse(room.keySelections || '[]'); } catch { return []; } })();
+  const [customInput, setCustomInput] = useState('');
+  const [showCustom, setShowCustom]   = useState(false);
+
+  const saveSelections = (next) => {
+    onUpdate({ keySelections: JSON.stringify(next), overallNotes: selectionsToText(next) });
+  };
+
+  const handleCardClick = (label) => {
+    const existing = selections.find(s => s.label === label);
+    saveSelections(existing
+      ? selections.map(s => s.label === label ? { ...s, count: s.count + 1 } : s)
+      : [...selections, { label, count: 1 }]
+    );
+  };
+
+  const handleRemoveCard = (label) => {
+    saveSelections(selections.filter(s => s.label !== label));
+  };
+
+  const handleAddCustom = () => {
+    const trimmed = customInput.trim();
+    if (!trimmed) return;
+    handleCardClick(trimmed);
+    setCustomInput('');
+    setShowCustom(false);
+  };
 
   return (
     <div className="space-y-5">
@@ -335,24 +383,82 @@ function SpecialRoomContent({ room, photos, roomId, inspectionId, onUpdate }) {
         )}
       </Section>
 
-      {/* Keys */}
+      {/* Keys — card grid */}
       {isKeys && (
-        <Section title="Description">
-          <div className="relative">
-            <textarea
-              className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
-              rows={3}
-              placeholder="Describe the keys — e.g. 2 × front door, 1 × garage…"
-              value={room.overallNotes || ''}
-              onChange={e => onUpdate({ overallNotes: e.target.value })}
-            />
-            <MicButton
-              value={room.overallNotes || ''}
-              onAppend={v => onUpdate({ overallNotes: v })}
-              className="absolute bottom-2 right-1.5"
-            />
-          </div>
-        </Section>
+        <>
+          <Section
+            title="Key Items"
+            action={
+              <button
+                onClick={() => setShowCustom(v => !v)}
+                className="text-sm font-bold text-surface bg-gold px-4 py-1.5 rounded-card active:opacity-80"
+              >
+                + Add Item
+              </button>
+            }
+          >
+            {/* Custom item input */}
+            {showCustom && (
+              <div className="flex gap-2 mb-3">
+                <input
+                  autoFocus
+                  className="flex-1 px-3 py-2 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold"
+                  placeholder="Custom key item…"
+                  value={customInput}
+                  onChange={e => setCustomInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
+                />
+                <button
+                  onClick={handleAddCustom}
+                  className="px-3 py-2 rounded-lg bg-gold text-surface text-sm font-bold active:opacity-80"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+
+            {/* 2-column preset grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Preset cards */}
+              {KEY_PRESETS.map(label => {
+                const sel = selections.find(s => s.label === label);
+                return (
+                  <KeyCard
+                    key={label}
+                    label={label}
+                    count={sel?.count || 0}
+                    onClick={() => handleCardClick(label)}
+                    onRemove={() => handleRemoveCard(label)}
+                  />
+                );
+              })}
+              {/* Custom cards (not in presets) */}
+              {selections.filter(s => !KEY_PRESETS.includes(s.label)).map(s => (
+                <KeyCard
+                  key={s.label}
+                  label={s.label}
+                  count={s.count}
+                  onClick={() => handleCardClick(s.label)}
+                  onRemove={() => handleRemoveCard(s.label)}
+                />
+              ))}
+            </div>
+          </Section>
+
+          {/* Description textarea — auto-populated, still manually editable */}
+          <Section title="Description">
+            <div className="relative">
+              <textarea
+                className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+                rows={4}
+                placeholder="Key items will appear here as you tap the cards above…"
+                value={room.overallNotes || ''}
+                onChange={e => onUpdate({ overallNotes: e.target.value })}
+              />
+              <MicButton value={room.overallNotes || ''} onAppend={v => onUpdate({ overallNotes: v })} className="absolute bottom-2 right-1.5" />
+            </div>
+          </Section>
+        </>
       )}
 
       {/* Meter fields */}
@@ -394,6 +500,42 @@ function SpecialRoomContent({ room, photos, roomId, inspectionId, onUpdate }) {
         </>
       )}
     </div>
+  );
+}
+
+// ─── Key card ─────────────────────────────────────────────────────────────
+function KeyCard({ label, count, onClick, onRemove }) {
+  const selected = count > 0;
+  return (
+    <button
+      onClick={onClick}
+      className={`relative text-left p-3 rounded-card border transition-all active:opacity-80 ${
+        selected
+          ? 'bg-gold/10 border-gold/60 dark:bg-gold/10 dark:border-gold/50'
+          : 'bg-gray-50 dark:bg-surface-card border-gray-200 dark:border-surface-border'
+      }`}
+    >
+      <span className="block text-xs font-semibold text-gray-800 dark:text-gray-100 leading-tight pr-4">
+        {label}
+      </span>
+      {selected && (
+        <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-gold">
+          × {count}
+        </span>
+      )}
+      {selected && (
+        <span
+          role="button"
+          onClickCapture={e => { e.stopPropagation(); onRemove(); }}
+          className="absolute top-2 right-2 text-gray-900 dark:text-gold hover:text-red-400 dark:hover:text-red-400 transition-colors"
+          aria-label={`Remove ${label}`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </span>
+      )}
+    </button>
   );
 }
 
