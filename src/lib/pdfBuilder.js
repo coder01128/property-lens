@@ -1,91 +1,114 @@
 /**
- * pdfBuilder.js — Full on-device PDF report builder (PRD §6.1).
+ * pdfBuilder.js — Professional property inspection PDF (redesigned).
  *
- * Sections:
- *   1. Header (brand, type, date)
- *   2. Property + inspection info + report reference
- *   3. Special cards (keys, meter readings)
- *   4. Rooms with overview photo thumbnails + item condition table
- *   5. Check-in / Check-out comparison table (check-out reports only)
- *   6. Signatures (agent + tenant)
- *   7. Footer on every page (watermark, page numbers)
+ * Layout:
+ *   Page 1  — Branded cover: header, property info, special cards
+ *   Page N  — One page per room: photos (aspect-ratio correct), item table, notes
+ *   Last    — Check-in/out comparison (if check-out) + signatures
  */
 
 import { jsPDF } from 'jspdf';
 
-// ─── Brand colours (RGB) ────────────────────────────────────────────────────
+// ─── Brand palette (RGB) ────────────────────────────────────────────────────
 const C = {
-  dark:   [12,  12,  22 ],
-  gold:   [200, 169, 110],
-  cream:  [240, 237, 232],
-  light:  [246, 246, 252],
-  muted:  [140, 140, 160],
-  body:   [40,  40,  50 ],
-  sub:    [100, 100, 120],
-  red:    [180, 80,  60 ],
-  green:  [34,  197, 94 ],
+  dark:    [10,  10,  22 ],
+  gold:    [200, 169, 110],
+  cream:   [240, 237, 232],
+  body:    [38,  38,  50 ],
+  sub:     [100, 100, 120],
+  muted:   [150, 150, 168],
+  border:  [200, 200, 215],
+  tblHdr:  [232, 232, 244],
+  tblAlt:  [248, 248, 252],
+  notesBg: [245, 245, 250],
+  red:     [185, 28,  28 ],
+  green:   [22,  163, 74 ],
 };
 
-const W  = 210;   // A4 width mm
-const M  = 16;    // margin mm
-const CW = W - M * 2;  // content width mm
+// Condition colours — darker shades for PDF readability on white
+const COND_RGB = {
+  Excellent: [22,  163, 74 ],
+  Good:      [5,   150, 105],
+  Fair:      [152, 115, 0  ],
+  Poor:      [194, 65,  12 ],
+  Damaged:   [185, 28,  28 ],
+  'N/A':     [107, 114, 128],
+};
 
-// Condition severity (for comparison delta)
 const SEV = { Excellent: 1, Good: 2, Fair: 3, Poor: 4, Damaged: 5 };
+
+const W  = 210;   // A4 width mm
+const M  = 14;    // page margin mm
+const CW = W - M * 2;  // content width: 182mm
+
+// Table column layout
+const TC = {
+  item:  { x: M,          w: 70  },
+  cond:  { x: M + 70,     w: 32  },
+  notes: { x: M + 70 + 32, w: CW - 70 - 32 },  // ~80mm
+};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Compress a dataUrl to thumbnail size for PDF embedding. */
-async function compressForPdf(dataUrl, maxW = 240, maxH = 180, quality = 0.6) {
+const fc = (doc, rgb) => doc.setFillColor(...rgb);
+const tc = (doc, rgb) => doc.setTextColor(...rgb);
+const dc = (doc, rgb) => doc.setDrawColor(...rgb);
+
+/** Check page break; add new page if needed. Returns new y. */
+function pb(doc, y, needed = 20) {
+  if (y + needed > 278) { doc.addPage(); return 22; }
+  return y;
+}
+
+/** Report reference code */
+function reportRef(id) {
+  return 'PL-' + (id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+/**
+ * Compress photo for PDF embedding, returns { dataUrl, ar (aspect ratio) }.
+ * Uses higher quality than AI compression — photos should look great in report.
+ */
+async function compressForPdf(dataUrl, maxDim = 900, quality = 0.88) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(maxW / (img.width || maxW), maxH / (img.height || maxH), 1);
+      const ar = img.width / (img.height || 1);
+      const scale = Math.min(maxDim / (img.width || maxDim), maxDim / (img.height || maxDim), 1);
       const w = Math.max(1, Math.round(img.width  * scale));
       const h = Math.max(1, Math.round(img.height * scale));
       try {
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      } catch { resolve(null); }
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), ar });
+      } catch { resolve({ dataUrl, ar }); }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => resolve({ dataUrl, ar: 1 });
     img.src = dataUrl;
   });
 }
 
-/** Generate a short human-readable report ref from inspection id. */
-function reportRef(inspectionId) {
-  return 'PL-' + (inspectionId || '').replace(/-/g, '').slice(0, 8).toUpperCase();
-}
-
-/** Set fill color from RGB array. */
-const fc = (doc, rgb) => doc.setFillColor(...rgb);
-/** Set text color from RGB array. */
-const tc = (doc, rgb) => doc.setTextColor(...rgb);
-
-/** Check page break and add new page if needed. Returns new y. */
-function pb(doc, y, needed = 20) {
-  if (y + needed > 280) { doc.addPage(); return 20; }
-  return y;
-}
-
-// ─── Section builders ───────────────────────────────────────────────────────
+// ─── Cover page ─────────────────────────────────────────────────────────────
 
 function drawHeader(doc, inspection) {
-  fc(doc, C.dark); doc.rect(0, 0, W, 42, 'F');
-  fc(doc, C.gold); doc.rect(0, 40, W, 2,  'F');
+  // Dark header band
+  fc(doc, C.dark); doc.rect(0, 0, W, 44, 'F');
+  fc(doc, C.gold); doc.rect(0, 42, W, 2.5, 'F');
 
-  tc(doc, C.gold);  doc.setFontSize(7);  doc.setFont('helvetica', 'bold');
-  doc.text('PROPERTY LENS', M, 11);
+  // Brand
+  tc(doc, C.gold); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.text('PROPERTY LENS', M, 12);
 
-  tc(doc, C.cream); doc.setFontSize(15);
-  doc.text('Property Inspection Report', M, 25);
+  // Title
+  tc(doc, C.cream); doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+  doc.text('Property Inspection Report', M, 27);
 
+  // Type + date pill (right-aligned)
   const typeLabel = inspection.type === 'check-in' ? 'Check-In' : 'Check-Out';
-  tc(doc, C.gold);  doc.setFontSize(8);  doc.setFont('helvetica', 'normal');
-  doc.text(`${typeLabel}  ·  ${inspection.inspectionDate || ''}`, M, 35);
+  const dateStr   = inspection.inspectionDate || '';
+  tc(doc, C.gold); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  doc.text(`${typeLabel}  ·  ${dateStr}`, M, 37);
 
   return 52;
 }
@@ -93,67 +116,87 @@ function drawHeader(doc, inspection) {
 function drawPropertyInfo(doc, inspection, y) {
   const ref = reportRef(inspection.id);
 
-  tc(doc, C.body); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-  doc.text(inspection.address || '—', M, y); y += 6;
+  // Address
+  tc(doc, C.dark); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text(inspection.address || '—', M, y); y += 7;
 
   if (inspection.addressLine2) {
     tc(doc, C.sub); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text(`Unit / Flat: ${inspection.addressLine2}`, M, y); y += 5;
+    doc.text(`Unit / Complex: ${inspection.addressLine2}`, M, y); y += 6;
   }
 
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-  tc(doc, C.sub);
+  y += 2;
 
-  const fields = [];
-  if (inspection.tenantName)    fields.push(`Tenant: ${inspection.tenantName}`);
-  if (inspection.inspectorName) fields.push(`Inspector: ${inspection.inspectorName}`);
-  fields.push(`Date: ${inspection.inspectionDate || '—'}`);
-  fields.push(`Report Ref: ${ref}`);
+  // Details grid — 2 columns
+  const details = [
+    ['Tenant',     inspection.tenantName    || '—'],
+    ['Inspector',  inspection.inspectorName || '—'],
+    ['Date',       inspection.inspectionDate || '—'],
+    ['Report Ref', ref],
+    ['Type',       inspection.type === 'check-in' ? 'Check-In' : 'Check-Out'],
+  ];
 
-  for (const f of fields) {
-    doc.text(f, M, y); y += 5;
-  }
+  const colW = CW / 2;
+  details.forEach(([label, val], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = M + col * colW;
+    const ry = y + row * 6.5;
 
-  return y + 4;
+    tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text(label.toUpperCase(), x, ry);
+    tc(doc, C.body);  doc.setFontSize(9);   doc.setFont('helvetica', 'normal');
+    doc.text(val, x + 28, ry);
+  });
+
+  y += Math.ceil(details.length / 2) * 6.5 + 6;
+
+  // Divider
+  dc(doc, C.gold); doc.setLineWidth(0.6);
+  doc.line(M, y, M + CW, y); y += 6;
+
+  return y;
 }
+
+// ─── Special cards ──────────────────────────────────────────────────────────
 
 async function drawSpecialCards(doc, rooms, items, photos, y) {
   const specialRooms = rooms.filter(r => r.isSpecial);
-  if (specialRooms.length === 0) return y;
+  if (!specialRooms.length) return y;
 
   y = pb(doc, y, 20);
 
-  // Section header
-  fc(doc, C.light); doc.roundedRect(M, y, CW, 7, 1.5, 1.5, 'F');
-  tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-  doc.text('SPECIAL CARDS', M + 3, y + 5); y += 11;
-
-  const thumbW = 36, thumbH = 27, gap = 3;
+  // Section heading
+  tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+  doc.text('SPECIAL CARDS', M, y); y += 2;
+  dc(doc, C.gold); doc.setLineWidth(0.4);
+  doc.line(M, y, M + CW, y); y += 6;
 
   for (const room of specialRooms) {
     y = pb(doc, y, 14);
 
-    // Room sub-header (no emoji — Helvetica can't render them)
-    fc(doc, [220, 218, 210]); doc.roundedRect(M, y, CW, 7, 1, 1, 'F');
+    // Sub-header
+    fc(doc, [220, 218, 210]); doc.rect(M, y, CW, 8, 'F');
     tc(doc, C.dark); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text(room.displayName, M + 3, y + 5);
-    y += 10;
+    doc.text(room.displayName, M + 3, y + 5.5);
+    y += 11;
 
-    // Photos for this special room
-    const roomPhotos = (photos || [])
-      .filter(p => p.roomId === room.id)
-      .slice(0, 4); // up to 4 thumbnails
-    if (roomPhotos.length > 0) {
-      y = pb(doc, y, thumbH + 4);
+    // Photos (aspect-ratio correct, up to 4)
+    const roomPhotos = (photos || []).filter(p => p.roomId === room.id).slice(0, 4);
+    if (roomPhotos.length) {
+      const maxW = (CW - (roomPhotos.length - 1) * 3) / Math.min(roomPhotos.length, 4);
+      const maxH = 40;
+      const compressed = await Promise.all(roomPhotos.map(p => compressForPdf(p.dataUrl, 600, 0.85)));
+      const rowH = Math.min(maxH, ...compressed.map(c => maxW / c.ar));
+      y = pb(doc, y, rowH + 4);
       let px = M;
-      for (const photo of roomPhotos) {
-        const compressed = await compressForPdf(photo.dataUrl, 240, 180);
-        if (compressed) {
-          try { doc.addImage(compressed, 'JPEG', px, y, thumbW, thumbH); } catch { /* skip */ }
-        }
-        px += thumbW + gap;
+      for (const { dataUrl: cd, ar } of compressed) {
+        const dw = maxW;
+        const dh = Math.min(maxH, dw / ar);
+        try { doc.addImage(cd, 'JPEG', px, y, dw, dh); } catch {}
+        px += dw + 3;
       }
-      y += thumbH + 5;
+      y += rowH + 5;
     }
 
     // Meter fields
@@ -164,273 +207,326 @@ async function drawSpecialCards(doc, rooms, items, photos, y) {
         room.meterReading  ? `Reading: ${room.meterReading} ${unit}` : null,
         room.meterNumber   ? `Meter No: ${room.meterNumber}` : null,
       ].filter(Boolean);
-      for (const field of fields) {
+      for (const f of fields) {
         y = pb(doc, y, 6);
-        tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-        doc.text(field, M + 3, y);
-        y += 6;
+        tc(doc, C.body); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+        doc.text(f, M + 3, y); y += 6;
       }
     }
 
-    // Keys — description (multiline, advance y correctly)
+    // Keys description (multiline)
     if (room.typeKey === 'keys' && room.overallNotes?.trim()) {
-      y = pb(doc, y, 6);
       doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); tc(doc, C.body);
       const lines = doc.splitTextToSize(room.overallNotes.trim(), CW - 6);
       for (const line of lines) {
         y = pb(doc, y, 6);
-        doc.text(line, M + 3, y);
-        y += 5.5;
+        doc.text(line, M + 3, y); y += 5.5;
       }
-    }
-
-    // Notes for meters
-    if ((room.typeKey === 'electricity_meter' || room.typeKey === 'water_meter') && room.overallNotes?.trim()) {
-      y = pb(doc, y, 6);
-      tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
-      const lines = doc.splitTextToSize(room.overallNotes.trim(), CW - 6);
-      for (const line of lines) {
-        y = pb(doc, y, 6);
-        doc.text(line, M + 3, y);
-        y += 5;
-      }
-    }
-
-    y += 6; // gap between special cards
-  }
-
-  return y + 4;
-}
-
-async function drawRooms(doc, completedRooms, items, photos, y) {
-  if (completedRooms.length === 0) return y;
-
-  y = pb(doc, y, 20);
-  fc(doc, C.light); doc.roundedRect(M, y, CW, 7, 1.5, 1.5, 'F');
-  tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-  doc.text('ROOM INSPECTIONS', M + 3, y + 5); y += 11;
-
-  for (const room of completedRooms) {
-    // Each room starts on its own page
-    doc.addPage();
-    y = 20;
-
-    // Room header bar
-    fc(doc, [230, 230, 240]); doc.roundedRect(M, y, CW, 8, 1.5, 1.5, 'F');
-    tc(doc, C.dark); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-    doc.text(room.displayName, M + 3, y + 6);
-
-    if (room.overallCondition) {
-      tc(doc, C.gold); doc.setFontSize(8);
-      doc.text(room.overallCondition, W - M - 3, y + 6, { align: 'right' });
-    }
-    y += 11;
-
-    // Overview photos (up to 2 thumbnails)
-    const overviewPhotos = photos
-      .filter(p => p.roomId === room.id && p.role === 'overview')
-      .slice(0, 2);
-
-    if (overviewPhotos.length > 0) {
-      y = pb(doc, y, 32);
-      let px = M;
-      const thumbW = 36, thumbH = 27, gap = 3;
-      for (const photo of overviewPhotos) {
-        const compressed = await compressForPdf(photo.dataUrl, 240, 180);
-        if (compressed) {
-          try {
-            doc.addImage(compressed, 'JPEG', px, y, thumbW, thumbH);
-          } catch { /* skip if image fails */ }
-        }
-        px += thumbW + gap;
-      }
-      y += thumbH + 4;
-    }
-
-    // Items
-    const roomItems = items.filter(it => it.roomId === room.id && it.name?.trim());
-    for (const item of roomItems) {
-      y = pb(doc, y, 8);
-      tc(doc, C.body); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-      doc.text(`· ${item.name}`, M + 3, y);
-
-      if (item.condition) {
-        doc.setFont('helvetica', 'bold');
-        tc(doc, item.condition === 'Excellent' || item.condition === 'Good' ? C.green : C.red);
-        doc.text(item.condition, M + 75, y);
-      }
-
-      if (item.defects?.trim()) {
-        doc.setFont('helvetica', 'italic'); tc(doc, C.red);
-        doc.text(item.defects, M + 108, y, { maxWidth: CW - 100 });
-      }
-
-      y += 6.5;
-    }
-
-    // Room notes
-    if (room.overallNotes?.trim()) {
-      y = pb(doc, y, 8);
-      tc(doc, C.sub); doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
-      doc.text(`Notes: ${room.overallNotes}`, M + 3, y, { maxWidth: CW - 6 }); y += 6;
     }
 
     y += 5;
   }
 
-  return y;
+  return y + 4;
 }
 
-function drawComparison(doc, rooms, items, linkedRooms, linkedItems, y) {
-  if (!linkedRooms?.length) return y;
+// ─── Item table ─────────────────────────────────────────────────────────────
 
-  y = pb(doc, y, 30);
-  fc(doc, C.light); doc.roundedRect(M, y, CW, 7, 1.5, 1.5, 'F');
-  tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-  doc.text('CHECK-IN vs CHECK-OUT COMPARISON', M + 3, y + 5); y += 11;
+function drawItemsTable(doc, items, yStart) {
+  if (!items.length) return yStart;
 
-  // Table headers
-  const colW = [50, 38, 38, 28]; // Room | Item | Check-In | Check-Out | Change
-  const cols  = [M, M+colW[0], M+colW[0]+colW[1], M+colW[0]+colW[1]+colW[2]];
+  const PAD    = 2.5;
+  const LINE_H = 4.4;
+  const MIN_ROW = 8;
 
-  tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-  doc.text('Room',       cols[0], y);
-  doc.text('Item',       cols[1], y);
-  doc.text('Check-In',   cols[2], y);
-  doc.text('Check-Out',  cols[3], y);
-  doc.text('Change', W - M, y, { align: 'right' });
-  y += 2;
+  let y = yStart;
 
-  // Divider
-  fc(doc, [220,220,230]); doc.rect(M, y, CW, 0.5, 'F'); y += 4;
+  // --- Header row ---
+  fc(doc, C.tblHdr); doc.rect(M, y, CW, 8.5, 'F');
+  tc(doc, C.dark); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+  doc.text('ITEM',            TC.item.x  + PAD, y + 5.8);
+  doc.text('CONDITION',       TC.cond.x  + PAD, y + 5.8);
+  doc.text('DEFECTS / NOTES', TC.notes.x + PAD, y + 5.8);
+  // Header bottom line
+  dc(doc, C.dark); doc.setLineWidth(0.5);
+  doc.line(M, y + 8.5, M + CW, y + 8.5);
+  // Column dividers in header
+  dc(doc, C.border); doc.setLineWidth(0.3);
+  doc.line(TC.cond.x,  y, TC.cond.x,  y + 8.5);
+  doc.line(TC.notes.x, y, TC.notes.x, y + 8.5);
+  y += 8.5;
 
-  const normalRooms = rooms.filter(r => !r.isSpecial && r.isComplete);
+  // --- Data rows ---
+  for (let ri = 0; ri < items.length; ri++) {
+    const item = items[ri];
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    const nameLines  = doc.splitTextToSize(item.name   || '', TC.item.w  - PAD * 2);
+    const defects    = item.defects?.trim() || '';
+    const noteLines  = defects ? doc.splitTextToSize(defects, TC.notes.w - PAD * 2) : [];
+    const rowH = Math.max(MIN_ROW, Math.max(nameLines.length, Math.max(noteLines.length, 1)) * LINE_H + PAD * 2);
 
-  for (const room of normalRooms) {
-    const linkedRoom = linkedRooms.find(lr => lr.displayName === room.displayName);
-    if (!linkedRoom) continue;
-
-    const roomItems   = items.filter(it => it.roomId === room.id && it.name?.trim());
-    const linkedItemsForRoom = linkedItems.filter(it => it.roomId === linkedRoom.id);
-
-    for (const item of roomItems) {
-      y = pb(doc, y, 7);
-
-      const linkedItem = linkedItemsForRoom.find(li =>
-        li.name?.toLowerCase() === item.name?.toLowerCase()
-      );
-      const ciCond = linkedItem?.condition || '—';
-      const coCond = item.condition || '—';
-
-      const ciSev = SEV[ciCond] || 0;
-      const coSev = SEV[coCond] || 0;
-      const delta = (ciSev && coSev) ? coSev - ciSev : null;
-      const arrow = delta == null ? '' : delta < 0 ? '↑ Better' : delta > 0 ? '↓ Worse' : '= Same';
-
-      tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-      doc.text(room.displayName.slice(0, 20), cols[0], y);
-      doc.text(item.name.slice(0, 20),        cols[1], y);
-      doc.text(ciCond, cols[2], y);
-      doc.text(coCond, cols[3], y);
-
-      if (arrow) {
-        tc(doc, delta < 0 ? C.green : delta > 0 ? C.red : C.muted);
-        doc.setFont('helvetica', 'bold');
-        doc.text(arrow, W - M, y, { align: 'right' });
-      }
-
-      y += 5.5;
+    // Page break — redraw header on new page
+    if (y + rowH > 278) {
+      doc.addPage(); y = 22;
+      fc(doc, C.tblHdr); doc.rect(M, y, CW, 8.5, 'F');
+      tc(doc, C.dark); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+      doc.text('ITEM (continued)',  TC.item.x  + PAD, y + 5.8);
+      doc.text('CONDITION',        TC.cond.x  + PAD, y + 5.8);
+      doc.text('DEFECTS / NOTES',  TC.notes.x + PAD, y + 5.8);
+      dc(doc, C.dark); doc.setLineWidth(0.5);
+      doc.line(M, y + 8.5, M + CW, y + 8.5);
+      dc(doc, C.border); doc.setLineWidth(0.3);
+      doc.line(TC.cond.x,  y, TC.cond.x,  y + 8.5);
+      doc.line(TC.notes.x, y, TC.notes.x, y + 8.5);
+      y += 8.5;
     }
+
+    // Alternating row background
+    if (ri % 2 === 0) { fc(doc, C.tblAlt); doc.rect(M, y, CW, rowH, 'F'); }
+
+    const textY = y + PAD + 3.2;
+
+    // Item name
+    tc(doc, C.body); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    doc.text(nameLines, TC.item.x + PAD, textY);
+
+    // Condition — colored, bold
+    if (item.condition) {
+      const rgb = COND_RGB[item.condition] || C.sub;
+      tc(doc, rgb); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text(item.condition, TC.cond.x + PAD, textY);
+    }
+
+    // Defects — red italic
+    if (noteLines.length) {
+      tc(doc, C.red); doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+      doc.text(noteLines, TC.notes.x + PAD, textY);
+    }
+
+    // Row divider + column lines
+    dc(doc, C.border); doc.setLineWidth(0.2);
+    doc.line(M, y + rowH, M + CW, y + rowH);
+    doc.line(TC.cond.x,  y, TC.cond.x,  y + rowH);
+    doc.line(TC.notes.x, y, TC.notes.x, y + rowH);
+
+    y += rowH;
   }
+
+  // Outer left + right borders spanning full table height
+  dc(doc, [180, 180, 200]); doc.setLineWidth(0.4);
+  doc.line(M,      yStart, M,      y);
+  doc.line(M + CW, yStart, M + CW, y);
+  doc.line(M, yStart, M + CW, yStart); // top
 
   return y + 4;
 }
 
+// ─── Room pages ─────────────────────────────────────────────────────────────
+
+async function drawRooms(doc, completedRooms, items, photos, y) {
+  if (!completedRooms.length) return y;
+
+  const MAX_PH = 58;  // max photo height mm
+  const GAP    = 4;   // gap between photos
+
+  for (const room of completedRooms) {
+    doc.addPage(); y = 20;
+
+    // ── Room header bar ──────────────────────────────
+    fc(doc, [228, 227, 238]); doc.rect(M, y, CW, 10, 'F');
+
+    tc(doc, C.dark); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text(room.displayName, M + 4, y + 7);
+
+    if (room.overallCondition) {
+      const rgb = COND_RGB[room.overallCondition] || C.sub;
+      tc(doc, rgb); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.text(room.overallCondition, W - M - 4, y + 7, { align: 'right' });
+    }
+
+    y += 13;
+
+    // ── Photos (aspect-ratio correct, 2-up layout) ──
+    const overviewPhotos = photos
+      .filter(p => p.roomId === room.id && p.role === 'overview')
+      .slice(0, 4);
+
+    if (overviewPhotos.length > 0) {
+      for (let i = 0; i < overviewPhotos.length; i += 2) {
+        const batch      = overviewPhotos.slice(i, i + 2);
+        const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl)));
+        const perW       = batch.length === 1 ? CW : (CW - GAP) / 2;
+        const rowH       = Math.min(MAX_PH, Math.max(...compressed.map(c => perW / c.ar)));
+
+        y = pb(doc, y, rowH + 4);
+        let px = M;
+        for (const { dataUrl: cd, ar } of compressed) {
+          const dh = Math.min(MAX_PH, perW / ar);
+          try { doc.addImage(cd, 'JPEG', px, y, perW, dh); } catch {}
+          px += perW + GAP;
+        }
+        y += rowH + 5;
+      }
+    }
+
+    // ── Items table ─────────────────────────────────
+    const roomItems = items.filter(it => it.roomId === room.id && it.name?.trim());
+    if (roomItems.length) {
+      y = pb(doc, y, 24);
+      y = drawItemsTable(doc, roomItems, y);
+    }
+
+    // ── General notes box ────────────────────────────
+    if (room.overallNotes?.trim()) {
+      y = pb(doc, y, 14);
+      const noteLines = doc.splitTextToSize(room.overallNotes.trim(), CW - 8);
+      const boxH = noteLines.length * 4.8 + 9;
+      fc(doc, C.notesBg); doc.rect(M, y, CW, boxH, 'F');
+      dc(doc, C.border);  doc.setLineWidth(0.3); doc.rect(M, y, CW, boxH);
+      tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('NOTES', M + 4, y + 5.5);
+      tc(doc, C.body); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
+      doc.text(noteLines, M + 4, y + 10);
+      y += boxH + 4;
+    }
+  }
+
+  return y;
+}
+
+// ─── Comparison table ────────────────────────────────────────────────────────
+
+function drawComparison(doc, rooms, items, linkedRooms, linkedItems, y) {
+  if (!linkedRooms?.length) return y;
+
+  doc.addPage(); y = 22;
+
+  tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+  doc.text('CHECK-IN vs CHECK-OUT COMPARISON', M, y); y += 2;
+  dc(doc, C.gold); doc.setLineWidth(0.5);
+  doc.line(M, y, M + CW, y); y += 7;
+
+  // Table header
+  const cols = [M, M + 52, M + 104, M + 136, M + 164];
+  fc(doc, C.tblHdr); doc.rect(M, y, CW, 8, 'F');
+  tc(doc, C.dark); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.text('Room',      cols[0] + 2, y + 5.5);
+  doc.text('Item',      cols[1] + 2, y + 5.5);
+  doc.text('Check-In',  cols[2] + 2, y + 5.5);
+  doc.text('Check-Out', cols[3] + 2, y + 5.5);
+  doc.text('Change',    cols[4] + 2, y + 5.5);
+  dc(doc, C.dark); doc.setLineWidth(0.4);
+  doc.line(M, y + 8, M + CW, y + 8);
+  for (let c = 1; c < cols.length; c++) {
+    dc(doc, C.border); doc.setLineWidth(0.2);
+    doc.line(cols[c], y, cols[c], y + 8);
+  }
+  y += 8;
+
+  let ri = 0;
+  for (const room of rooms.filter(r => !r.isSpecial && r.isComplete)) {
+    const linkedRoom = linkedRooms.find(lr => lr.displayName === room.displayName);
+    if (!linkedRoom) continue;
+    const roomItems        = items.filter(it => it.roomId === room.id && it.name?.trim());
+    const linkedItemsRoom  = (linkedItems || []).filter(it => it.roomId === linkedRoom.id);
+
+    for (const item of roomItems) {
+      y = pb(doc, y, 7);
+      const linked  = linkedItemsRoom.find(li => li.name?.toLowerCase() === item.name?.toLowerCase());
+      const ciCond  = linked?.condition || '—';
+      const coCond  = item.condition    || '—';
+      const ciSev   = SEV[ciCond] || 0;
+      const coSev   = SEV[coCond] || 0;
+      const delta   = (ciSev && coSev) ? coSev - ciSev : null;
+      const arrow   = delta == null ? '' : delta < 0 ? 'Improved' : delta > 0 ? 'Declined' : 'Same';
+
+      if (ri % 2 === 0) { fc(doc, C.tblAlt); doc.rect(M, y, CW, 6.5, 'F'); }
+      tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+      doc.text(room.displayName.slice(0, 18), cols[0] + 2, y + 4.5);
+      doc.text(item.name.slice(0, 18),        cols[1] + 2, y + 4.5);
+
+      if (ciCond !== '—') { tc(doc, COND_RGB[ciCond] || C.sub); doc.setFont('helvetica', 'bold'); }
+      doc.text(ciCond, cols[2] + 2, y + 4.5);
+
+      if (coCond !== '—') { tc(doc, COND_RGB[coCond] || C.sub); doc.setFont('helvetica', 'bold'); }
+      doc.text(coCond, cols[3] + 2, y + 4.5);
+
+      if (arrow) {
+        tc(doc, delta < 0 ? C.green : delta > 0 ? C.red : C.muted);
+        doc.setFont('helvetica', 'bold');
+        doc.text(arrow, cols[4] + 2, y + 4.5);
+      }
+
+      dc(doc, C.border); doc.setLineWidth(0.15);
+      doc.line(M, y + 6.5, M + CW, y + 6.5);
+      for (let c = 1; c < cols.length; c++) doc.line(cols[c], y, cols[c], y + 6.5);
+
+      y += 6.5; ri++;
+    }
+  }
+
+  return y + 6;
+}
+
+// ─── Signatures ──────────────────────────────────────────────────────────────
+
 function drawSignatures(doc, signatures, y) {
-  y = pb(doc, y, 50);
+  y = pb(doc, y, 60);
 
-  // Section divider
-  fc(doc, [220,220,230]); doc.rect(M, y, CW, 0.5, 'F'); y += 6;
+  dc(doc, C.gold); doc.setLineWidth(0.5);
+  doc.line(M, y, M + CW, y); y += 7;
 
-  tc(doc, C.dark); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  tc(doc, C.dark); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
   doc.text('Signatures', M, y); y += 8;
 
-  const sigW = 80, sigH = 22;
+  const sigW = 82, sigH = 26;
   const positions = [
-    { label: 'Inspector / Agent', x: M,          sig: signatures?.agent  },
-    { label: 'Tenant',            x: M + sigW + 8, sig: signatures?.tenant },
+    { label: 'Inspector / Agent', x: M,             sig: signatures?.agent  },
+    { label: 'Tenant',            x: M + sigW + 12,  sig: signatures?.tenant },
   ];
 
+  const sigY = y;
   for (const { label, x, sig } of positions) {
-    y = pb(doc, y, sigH + 12);
+    tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+    doc.text(label.toUpperCase(), x, sigY);
 
-    tc(doc, C.sub); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-    doc.text(label, x, y); y += 3;
-
-    // Signature image or blank box
     if (sig) {
-      try {
-        doc.addImage(sig, 'PNG', x, y, sigW, sigH);
-      } catch { /* skip */ }
+      try { doc.addImage(sig, 'PNG', x, sigY + 3, sigW, sigH); } catch {}
     } else {
-      // Empty box placeholder
-      doc.setDrawColor(200, 200, 210);
-      doc.rect(x, y, sigW, sigH);
-      tc(doc, [200,200,210]); doc.setFontSize(7);
-      doc.text('(not signed)', x + sigW / 2, y + sigH / 2 + 2, { align: 'center' });
+      dc(doc, C.border); doc.setLineWidth(0.3);
+      doc.rect(x, sigY + 3, sigW, sigH);
+      tc(doc, [210, 210, 220]); doc.setFontSize(7);
+      doc.text('(not signed)', x + sigW / 2, sigY + 3 + sigH / 2 + 2, { align: 'center' });
     }
 
-    // Only advance y for the first signature (they're side by side)
-    if (x === M) {
-      // will advance after both are drawn
-    }
+    // Signature line + label
+    fc(doc, [190, 190, 205]); doc.rect(x, sigY + 3 + sigH + 4, sigW, 0.5, 'F');
+    tc(doc, C.muted); doc.setFontSize(7);
+    doc.text(label, x + sigW / 2, sigY + 3 + sigH + 10, { align: 'center' });
   }
 
-  // Advance y past signature boxes
-  y += sigH + 4;
-
-  // Signature lines
-  for (const { label, x } of positions) {
-    fc(doc, [180,180,200]); doc.rect(x, y, sigW, 0.5, 'F');
-    tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-    doc.text(label, x + sigW / 2, y + 4, { align: 'center' });
-  }
-
-  return y + 10;
+  return sigY + sigH + 20;
 }
+
+// ─── Footers (all pages) ─────────────────────────────────────────────────────
 
 function drawFooters(doc, inspection) {
   const ref       = reportRef(inspection.id);
+  const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
   const pageCount = doc.getNumberOfPages();
-  const timestamp = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' });
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     fc(doc, C.dark); doc.rect(0, 285, W, 12, 'F');
     tc(doc, C.gold); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-    doc.text(`Property Lens · PropertyLens.co.za · ${ref} · ${timestamp}`, M, 291);
+    doc.text(`Property Lens  ·  ${ref}  ·  ${timestamp}`, M, 291);
     tc(doc, C.muted);
     doc.text(`Page ${i} of ${pageCount}`, W - M, 291, { align: 'right' });
   }
 }
 
-// ─── Main export ────────────────────────────────────────────────────────────
+// ─── Main export ─────────────────────────────────────────────────────────────
 
-/**
- * Build a full inspection PDF.
- *
- * @param {{
- *   inspection: object,
- *   rooms: object[],
- *   items: object[],
- *   photos: object[],
- *   signatures: { agent: string|null, tenant: string|null } | null,
- *   linkedInspection: object | null,
- *   linkedRooms: object[] | null,
- *   linkedItems: object[] | null,
- * }} data
- * @returns {import('jspdf').jsPDF}
- */
 export async function buildInspectionPDF({
   inspection,
   rooms,
@@ -441,7 +537,7 @@ export async function buildInspectionPDF({
   linkedRooms   = null,
   linkedItems   = null,
 }) {
-  const doc  = new jsPDF({ unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   const completedRooms = rooms.filter(r => r.isComplete && !r.isSpecial);
 
   let y = drawHeader(doc, inspection);
@@ -459,7 +555,6 @@ export async function buildInspectionPDF({
   return doc;
 }
 
-/** Generate the filename for a report. */
 export function reportFilename(inspection) {
   const addr = (inspection.address || 'report').replace(/[^a-zA-Z0-9]/g, '_');
   const date = inspection.inspectionDate || 'undated';

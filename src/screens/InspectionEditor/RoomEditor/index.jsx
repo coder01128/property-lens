@@ -597,7 +597,7 @@ function ItemPicker({ preset, roomId, inspectionId, onDone }) {
       </div>
 
       {/* Sticky "Let's Go" button */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white dark:bg-surface border-t border-gray-100 dark:border-surface-border z-40">
+      <div className="fixed bottom-0 left-0 right-0 px-4 pb-24 pt-3 bg-white dark:bg-surface border-t border-gray-100 dark:border-surface-border z-[60]">
         <button
           onClick={handleLetsGo}
           className="w-full py-4 rounded-card bg-gold text-surface font-bold text-lg active:opacity-90"
@@ -690,7 +690,7 @@ function KeyCard({ label, count, onClick, onRemove }) {
 }
 
 // ─── Photo compression (1200px max, JPEG 0.85) ────────────────────────────
-async function compressPhoto(dataUrl, maxPx = 1200, quality = 0.85) {
+async function compressPhoto(dataUrl, maxPx = 2048, quality = 0.94) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
