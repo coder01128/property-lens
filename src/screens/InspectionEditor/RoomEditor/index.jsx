@@ -501,7 +501,7 @@ function ItemCard({ item, onChange, onRemove }) {
 
       {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
         <textarea
-          className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-surface-overlay border border-amber-300 dark:border-amber-700/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+          className="w-full px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-surface-overlay border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
           rows={2}
           placeholder="Describe the defect or issue…"
           value={item.defects || ''}

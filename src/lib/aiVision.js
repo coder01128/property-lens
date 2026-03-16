@@ -66,10 +66,6 @@ export async function analyzeRoomPhotos(photos, context) {
     },
   }));
 
-  const knownItems = context.itemNames?.length
-    ? `Pre-listed items to prioritise if visible: ${context.itemNames.join(', ')}.`
-    : '';
-
   const promptText = `You are an experienced South African property inspector conducting a ${context.inspectionType} inspection.
 
 Analyse the ${batch.length} overview photo(s) of this ${context.roomType} and return ONLY a valid JSON object — no markdown, no explanation:
@@ -77,20 +73,15 @@ Analyse the ${batch.length} overview photo(s) of this ${context.roomType} and re
 {
   "overallCondition": "Excellent | Good | Fair | Poor | Damaged",
   "confidence": 0.0,
-  "notes": "General condition summary (2-3 sentences covering overall state, cleanliness, any notable defects or wear)",
-  "items": [
-    { "name": "item name", "condition": "Excellent | Good | Fair | Poor | Damaged | N/A", "notes": "specific observation" }
-  ]
+  "notes": "General condition summary",
+  "items": []
 }
 
 Rules:
 - overallCondition must be exactly one of: Excellent, Good, Fair, Poor, Damaged
-- confidence is a float 0.0–1.0 reflecting how clearly the condition is visible in the photos
-- notes must be a descriptive paragraph: overall room condition, cleanliness, visible wear, stains, damage, or outstanding features
-- items[] must list EVERY distinct item or surface you can identify in the photos — walls, ceiling, floor, windows, doors, fixtures, furniture, fittings, appliances, etc. Do not limit to pre-listed items only
-- For each item provide a specific observation in notes (e.g. "hairline crack on upper right corner", "stained grout between tiles")
-- Items with no visible issues should still be listed with condition Excellent or Good
-- ${knownItems}
+- confidence is a float 0.0–1.0 reflecting how clearly the condition is visible
+- notes must be 2-3 sentences describing the overall room condition, cleanliness, and any notable defects, stains, cracks, or wear visible in the photos
+- items must always be an empty array []
 - Use South African English spelling`;
 
   const controller = new AbortController();
