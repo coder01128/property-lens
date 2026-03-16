@@ -488,8 +488,8 @@ function ItemCard({ item, onChange, onRemove }) {
           onChange={e => onChange({ name: e.target.value })}
         />
         <MicButton value={item.name} onAppend={v => onChange({ name: v })} />
-        <button onClick={onRemove} className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <button onClick={onRemove} className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
@@ -517,7 +517,7 @@ function ItemCard({ item, onChange, onRemove }) {
       {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
         <div className="relative">
           <textarea
-            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-gray-50 dark:bg-surface-overlay border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-surface-card border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
             rows={2}
             placeholder="Describe the defect or issue…"
             value={item.defects || ''}
@@ -563,14 +563,14 @@ function MicButton({ value, onAppend, className = '' }) {
       type="button"
       onMouseDown={e => e.preventDefault()} // prevent textarea blur
       onClick={toggle}
-      className={`p-1.5 rounded-full transition-colors ${
+      className={`p-2 rounded-full transition-colors ${
         listening
           ? 'text-red-500 animate-pulse'
           : 'text-gray-400 dark:text-gray-500 hover:text-gold'
       } ${className}`}
       aria-label={listening ? 'Stop recording' : 'Dictate'}
     >
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.364 9.172a.75.75 0 0 1 .736.912A7.001 7.001 0 0 1 12.75 17.92V20h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5v-2.08a7.001 7.001 0 0 1-6.35-6.836.75.75 0 0 1 1.486-.176A5.5 5.5 0 0 0 17.5 11a5.47 5.47 0 0 0-.048-.64.75.75 0 0 1 .912-.188z"/>
       </svg>
     </button>
