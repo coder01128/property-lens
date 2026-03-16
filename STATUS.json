@@ -1,40 +1,36 @@
 {
   "projectName": "Property Lens",
-  "version": "0.2.1",
-  "lastUpdated": "2026-03-16T00:00:00Z",
-  "currentPhase": "MVP Development — Room Item Picker",
-  "summary": "Room item picker delivered: first-visit 2-column tap-to-add grid for each room type, replacing auto-seeding. Inspectors tap items to select, tap again to add multiples, then press Let's Go to bulk-create items.",
-  "techStack": "React 18 + Vite 5 PWA, React Router v6, Tailwind CSS v3, Dexie.js v4 (IndexedDB), jsPDF 4, Claude Haiku (AI vision), Supabase JS v2 (sync, gated on VITE_SUPABASE_URL), Google Places API (optional), SW cache-first assets",
+  "version": "0.3.0",
+  "lastUpdated": "2026-03-16T16:00:00Z",
+  "currentPhase": "MVP Polish — UX & PDF Refinement",
+  "summary": "Core inspection flow complete with room item picker, AI vision, PDF generation, and special cards. Tap-driven design throughout to minimise inspector input time.",
+  "techStack": "React 18 + Vite 5 PWA, React Router v7, Tailwind CSS v3, Dexie.js v4, jsPDF, Claude Haiku 4.5, Nominatim, Web Speech API",
   "recentChanges": [
-    "Added pickerItems arrays to all 15 ROOM_PRESETS entries in roomPresets.js",
-    "Removed auto-seeding loop from handleAddRoom in InspectionEditor/index.jsx",
-    "Added ItemPicker component to RoomEditor — shown on first visit when room has no items",
-    "Added PickerCard component — tap to select, tap again to increment count, X to remove",
-    "Let's Go button bulk-creates items (auto-numbered if count > 1) and sets pickerDone=true",
-    "Skip option available for inspectors who prefer manual item entry"
+    "Room item picker: 2-col tap-to-add grid on first room visit, Let's Go seeds items",
+    "Keys section: card grid with count tracking",
+    "Special rooms: dedicated layouts, 1 photo min, no AI",
+    "PDF: one room per page, special card photos embedded",
+    "Section headings: gold + underlined + 1.5x",
+    "Mic: 1.5x larger, always gold",
+    "Generate Report: solid gold button",
+    "Google Maps key added to Vercel (pending GCloud config)"
   ],
   "blockers": [
-    "VITE_ANTHROPIC_KEY not set — AI analysis inactive until .env configured",
-    "VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY not set — sync inactive until Supabase project created",
-    "Client-side API keys need server-side proxy before production (Phase 2)",
-    "Rooms/items/photos cloud sync deferred to Phase 2",
-    "pickerDone DB field may need Dexie schema version bump if not already in migration"
+    "Google Maps Places: needs GCloud billing + referrer config",
+    "Anthropic key needs server-side proxy before production",
+    "Supabase sync not configured"
   ],
   "nextSteps": [
-    "Verify pickerDone field is in Dexie DB schema (add migration if needed)",
-    "Test picker on mobile — verify sticky Let's Go button behaviour",
-    "Consider custom item input row in picker (like keys card grid)",
-    "Phase 2: Supabase project setup (auth, rooms/items/photos cloud sync)",
-    "Phase 2: Server-side Anthropic proxy (remove VITE_ANTHROPIC_KEY from client)",
-    "Tier gating: PDF watermark removal for paid plans"
+    "Test room picker on mobile",
+    "Add custom item input to picker grid",
+    "Phase 2: Supabase auth + cloud sync",
+    "Phase 2: server-side Anthropic proxy"
   ],
   "metrics": {
-    "componentsBuilt": 30,
+    "componentsBuilt": 35,
     "screensImplemented": 7,
     "ticketsTotal": 11,
     "ticketsDone": 11,
-    "ticketsPending": 0,
-    "testsWritten": 259,
-    "openIssues": 5
+    "openIssues": 3
   }
 }
