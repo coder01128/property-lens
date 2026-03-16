@@ -56,7 +56,7 @@ export default function Settings() {
           />
           <Row
             label="Model"
-            value="Claude Sonnet 4.6"
+            value="Claude 3.5 Sonnet"
           />
         </Section>
 

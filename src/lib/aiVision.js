@@ -7,7 +7,7 @@
  */
 
 const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
-const MODEL         = 'claude-sonnet-4-6';
+const MODEL         = 'claude-3-5-sonnet-20241022';
 const TIMEOUT_MS    = 15_000;
 const MAX_PHOTOS    = 4;   // max overview photos per API call (cost control)
 const MAX_PX        = 800; // longest-edge resize before upload
@@ -141,7 +141,7 @@ Rules:
     };
   } catch (err) {
     clearTimeout(timer);
-    if (err.name !== 'AbortError') console.warn('[AI] analyzeRoomPhotos failed:', err.message);
-    return null;
+    if (err.name === 'AbortError') return null; // timeout — retry later
+    throw err; // propagate real errors (API 404, 401, etc.) to caller
   }
 }
