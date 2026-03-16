@@ -500,7 +500,7 @@ function ItemCard({ item, onChange, onRemove }) {
           value={item.name}
           onChange={e => onChange({ name: e.target.value })}
         />
-        <button onClick={onRemove} className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors">
+        <button onClick={onRemove} className="p-1 text-gray-900 dark:text-gold hover:text-red-400 dark:hover:text-red-400 transition-colors">
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>

@@ -89,9 +89,9 @@ export default function InspectionEditor() {
           completedCount > 0 ? (
             <button
               onClick={() => navigate(`/inspect/${inspectionId}/report`)}
-              className="text-xs font-bold text-gold px-3 py-1.5 rounded-full border border-gold/40 bg-gold/5"
+              className="text-sm font-bold text-surface bg-gold px-4 py-2 rounded-card active:opacity-80"
             >
-              Report →
+              Generate Report
             </button>
           ) : null
         }

@@ -181,7 +181,9 @@ async function drawRooms(doc, completedRooms, items, photos, y) {
   doc.text('ROOM INSPECTIONS', M + 3, y + 5); y += 11;
 
   for (const room of completedRooms) {
-    y = pb(doc, y, 25);
+    // Each room starts on its own page
+    doc.addPage();
+    y = 20;
 
     // Room header bar
     fc(doc, [230, 230, 240]); doc.roundedRect(M, y, CW, 8, 1.5, 1.5, 'F');
