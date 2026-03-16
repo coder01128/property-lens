@@ -321,6 +321,7 @@ function AISuggestionBanner({ room, onAccept, onDismiss }) {
 const KEY_PRESETS = [
   'Driveway Gate Key',
   'Driveway Gate Remote',
+  'Garage Remote',
   'Front Door Security Gate Key',
   'Front Door Key',
   'Back Door Key',

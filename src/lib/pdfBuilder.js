@@ -129,44 +129,55 @@ function drawSpecialCards(doc, rooms, items, y) {
   doc.text('SPECIAL CARDS', M + 3, y + 5); y += 11;
 
   for (const room of specialRooms) {
-    y = pb(doc, y, 10);
-    const icon = room.typeKey === 'keys' ? '🔑' : room.typeKey === 'electricity_meter' ? '⚡' : '💧';
+    y = pb(doc, y, 14);
 
-    tc(doc, C.body); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text(`${icon} ${room.displayName}`, M + 2, y);
+    // Room sub-header (no emoji — Helvetica can't render them)
+    fc(doc, [220, 218, 210]); doc.roundedRect(M, y, CW, 7, 1, 1, 'F');
+    tc(doc, C.dark); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(room.displayName, M + 3, y + 5);
+    y += 10;
 
-    // Meter reading
-    if ((room.typeKey === 'electricity_meter' || room.typeKey === 'water_meter') && room.meterReading) {
+    // Meter fields
+    if (room.typeKey === 'electricity_meter' || room.typeKey === 'water_meter') {
       const unit = room.typeKey === 'electricity_meter' ? 'kWh' : 'kL';
-      tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      doc.text(`Reading: ${room.meterReading} ${unit}`, M + 60, y);
-    }
-
-    // Key count
-    if (room.typeKey === 'keys' && room.keyCount != null) {
-      tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      doc.text(`Sets: ${room.keyCount}`, M + 60, y);
-    }
-
-    y += 6;
-
-    // Key items
-    if (room.typeKey === 'keys') {
-      const keyItems = items.filter(it => it.roomId === room.id && it.name?.trim());
-      for (const ki of keyItems) {
+      const fields = [
+        room.meterLocation  ? `Location: ${room.meterLocation}`           : null,
+        room.meterReading   ? `Reading: ${room.meterReading} ${unit}`     : null,
+        room.meterNumber    ? `Meter No: ${room.meterNumber}`             : null,
+      ].filter(Boolean);
+      for (const field of fields) {
         y = pb(doc, y, 6);
-        tc(doc, C.sub); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-        doc.text(`  · ${ki.name}${ki.condition ? '  — ' + ki.condition : ''}`, M + 4, y);
+        tc(doc, C.sub); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+        doc.text(field, M + 3, y);
+        y += 6;
+      }
+    }
+
+    // Keys — description (multiline, advance y correctly)
+    if (room.typeKey === 'keys' && room.overallNotes?.trim()) {
+      y = pb(doc, y, 6);
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); tc(doc, C.body);
+      const lines = doc.splitTextToSize(room.overallNotes.trim(), CW - 6);
+      for (const line of lines) {
+        y = pb(doc, y, 6);
+        doc.text(line, M + 3, y);
+        y += 5.5;
+      }
+    }
+
+    // Notes for meters
+    if ((room.typeKey === 'electricity_meter' || room.typeKey === 'water_meter') && room.overallNotes?.trim()) {
+      y = pb(doc, y, 6);
+      tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
+      const lines = doc.splitTextToSize(room.overallNotes.trim(), CW - 6);
+      for (const line of lines) {
+        y = pb(doc, y, 6);
+        doc.text(line, M + 3, y);
         y += 5;
       }
     }
 
-    // Notes
-    if (room.overallNotes?.trim()) {
-      y = pb(doc, y, 6);
-      tc(doc, C.muted); doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
-      doc.text(room.overallNotes, M + 4, y, { maxWidth: CW - 8 }); y += 5;
-    }
+    y += 6; // gap between special cards
   }
 
   return y + 4;
