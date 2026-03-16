@@ -1,50 +1,59 @@
 /**
- * AddressInput — Google Places Autocomplete widget attached to the input element.
- * Google manages the suggestions dropdown natively (pac-container).
- * Falls back to plain text input if the API key is absent or script fails.
+ * AddressInput — address autocomplete using OpenStreetMap Nominatim.
+ * Free, no API key required, restricted to South African addresses.
+ * Falls back gracefully to plain input on network failure.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
-const GKEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-let _scriptPromise = null;
-function loadPlaces() {
-  if (window.google?.maps?.places) return Promise.resolve();
-  if (_scriptPromise) return _scriptPromise;
-  _scriptPromise = new Promise((resolve, reject) => {
-    window.__gmapsInit = resolve;
-    const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GKEY}&libraries=places&callback=__gmapsInit`;
-    s.async = true;
-    s.onerror = () => { _scriptPromise = null; reject(); };
-    document.head.appendChild(s);
-  });
-  return _scriptPromise;
-}
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 
 export default function AddressInput({ value, onChange, onSelect, hasError, placeholder, autoFocus }) {
-  const inputRef = useRef(null);
-  const acRef    = useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen]               = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const debounceRef  = useRef(null);
+  const containerRef = useRef(null);
+
+  const fetchSuggestions = useCallback(async (query) => {
+    if (query.length < 4) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: query, countrycodes: 'za', format: 'json', limit: '6', addressdetails: '1',
+      });
+      const res  = await fetch(`${NOMINATIM}?${params}`, {
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'PropertyLens/1.0' },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSuggestions(data.map(r => ({ label: r.display_name, place_id: r.place_id })));
+      setOpen(data.length > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    onChange(v);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(v), 350);
+  };
+
+  const handleSelect = (s) => {
+    onChange(s.label);
+    setSuggestions([]);
+    setOpen(false);
+    if (onSelect) onSelect(s);
+  };
 
   useEffect(() => {
-    if (!GKEY || !inputRef.current) return;
-    loadPlaces()
-      .then(() => {
-        if (acRef.current) return; // already attached
-        const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
-          componentRestrictions: { country: 'za' },
-          fields: ['formatted_address', 'name'],
-        });
-        ac.addListener('place_changed', () => {
-          const place = ac.getPlace();
-          const addr  = place.formatted_address || place.name || inputRef.current.value;
-          onChange(addr);
-          if (onSelect) onSelect({ label: addr });
-        });
-        acRef.current = ac;
-      })
-      .catch(() => { /* no-op — plain input fallback */ });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const handler = (e) => { if (!containerRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const cls = [
     'w-full px-4 py-3 rounded-card text-sm bg-gray-50 dark:bg-surface-card border transition-colors outline-none',
@@ -55,16 +64,34 @@ export default function AddressInput({ value, onChange, onSelect, hasError, plac
   ].join(' ');
 
   return (
-    <input
-      ref={inputRef}
-      className={cls}
-      placeholder={placeholder || 'e.g. 14 Bree Street, Cape Town'}
-      defaultValue={value}
-      onChange={e => onChange(e.target.value)}
-      autoFocus={autoFocus}
-      autoComplete="off"
-      type="text"
-      inputMode="text"
-    />
+    <div ref={containerRef} className="relative">
+      <input
+        className={cls}
+        placeholder={placeholder || 'e.g. 14 Bree Street, Cape Town'}
+        value={value}
+        onChange={handleChange}
+        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        autoFocus={autoFocus}
+        autoComplete="off"
+        type="text"
+        inputMode="text"
+      />
+      {loading && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Searching…</span>
+      )}
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 left-0 right-0 mt-1 rounded-card border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-card shadow-sheet overflow-hidden max-h-56 overflow-y-auto">
+          {suggestions.map((s) => (
+            <li
+              key={s.place_id}
+              onMouseDown={() => handleSelect(s)}
+              className="px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 cursor-pointer hover:bg-gold/10 active:bg-gold/20 border-b border-gray-100 dark:border-surface-border last:border-0 leading-snug"
+            >
+              {s.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
