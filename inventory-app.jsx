@@ -466,6 +466,60 @@ export default function App() {
     }
   },[]);
 
+  // ── Google Maps Autocomplete ───────────────────────────────
+  const addressInputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+
+  useEffect(() => {
+    if (screen === "inspection" && !insp?.address && !window.google) {
+      // Load Google Maps API
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey || apiKey === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
+        console.warn('Google Maps API key not configured');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+
+      script.onload = () => {
+        initializeAutocomplete();
+      };
+
+      return () => {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      };
+    } else if (screen === "inspection" && !insp?.address && window.google) {
+      initializeAutocomplete();
+    }
+  }, [screen, insp]);
+
+  const initializeAutocomplete = () => {
+    if (!addressInputRef.current || !window.google) return;
+
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(
+      addressInputRef.current,
+      {
+        componentRestrictions: { country: 'za' }, // Restrict to South Africa
+        fields: ['formatted_address', 'geometry'],
+        types: ['address']
+      }
+    );
+
+    autocompleteRef.current.addListener('place_changed', () => {
+      const place = autocompleteRef.current.getPlace();
+      if (place.formatted_address) {
+        setHeaderDraft(prev => ({ ...prev, address: place.formatted_address }));
+        setHeaderErrors(prev => ({ ...prev, address: "" }));
+      }
+    });
+  };
+
   // ── Auth ────────────────────────────────────────────────────
   const handleAuth = (provider) => {
     let u;
@@ -808,7 +862,7 @@ export default function App() {
         {!insp?.address?(
           <div style={T.card}>
             <label style={T.lbl}>Property Address *</label>
-            <input style={{...T.inp,...(headerErrors.address?{borderColor:"#f87171"}:{})}}
+            <input ref={addressInputRef} style={{...T.inp,...(headerErrors.address?{borderColor:"#f87171"}:{})}}
               placeholder="e.g. 14 Bree Street, Cape Town"
               value={headerDraft.address}
               onChange={e=>{setHeaderDraft(p=>({...p,address:e.target.value}));setHeaderErrors(p=>({...p,address:""}));}}/>
