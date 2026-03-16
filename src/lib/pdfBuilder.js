@@ -117,7 +117,7 @@ function drawPropertyInfo(doc, inspection, y) {
   return y + 4;
 }
 
-function drawSpecialCards(doc, rooms, items, y) {
+async function drawSpecialCards(doc, rooms, items, photos, y) {
   const specialRooms = rooms.filter(r => r.isSpecial);
   if (specialRooms.length === 0) return y;
 
@@ -128,6 +128,8 @@ function drawSpecialCards(doc, rooms, items, y) {
   tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
   doc.text('SPECIAL CARDS', M + 3, y + 5); y += 11;
 
+  const thumbW = 36, thumbH = 27, gap = 3;
+
   for (const room of specialRooms) {
     y = pb(doc, y, 14);
 
@@ -137,13 +139,30 @@ function drawSpecialCards(doc, rooms, items, y) {
     doc.text(room.displayName, M + 3, y + 5);
     y += 10;
 
+    // Photos for this special room
+    const roomPhotos = (photos || [])
+      .filter(p => p.roomId === room.id)
+      .slice(0, 4); // up to 4 thumbnails
+    if (roomPhotos.length > 0) {
+      y = pb(doc, y, thumbH + 4);
+      let px = M;
+      for (const photo of roomPhotos) {
+        const compressed = await compressForPdf(photo.dataUrl, 240, 180);
+        if (compressed) {
+          try { doc.addImage(compressed, 'JPEG', px, y, thumbW, thumbH); } catch { /* skip */ }
+        }
+        px += thumbW + gap;
+      }
+      y += thumbH + 5;
+    }
+
     // Meter fields
     if (room.typeKey === 'electricity_meter' || room.typeKey === 'water_meter') {
       const unit = room.typeKey === 'electricity_meter' ? 'kWh' : 'kL';
       const fields = [
-        room.meterLocation  ? `Location: ${room.meterLocation}`           : null,
-        room.meterReading   ? `Reading: ${room.meterReading} ${unit}`     : null,
-        room.meterNumber    ? `Meter No: ${room.meterNumber}`             : null,
+        room.meterLocation ? `Location: ${room.meterLocation}` : null,
+        room.meterReading  ? `Reading: ${room.meterReading} ${unit}` : null,
+        room.meterNumber   ? `Meter No: ${room.meterNumber}` : null,
       ].filter(Boolean);
       for (const field of fields) {
         y = pb(doc, y, 6);
@@ -427,7 +446,7 @@ export async function buildInspectionPDF({
 
   let y = drawHeader(doc, inspection);
   y     = drawPropertyInfo(doc, inspection, y);
-  y     = drawSpecialCards(doc, rooms, items, y);
+  y     = await drawSpecialCards(doc, rooms, items, photos, y);
   y     = await drawRooms(doc, completedRooms, items, photos, y);
 
   if (inspection.type === 'check-out' && linkedRooms?.length) {
