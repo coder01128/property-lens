@@ -1,54 +1,63 @@
 /**
- * AddressInput — address autocomplete using OpenStreetMap Nominatim.
- * Free, no API key required, restricted to South African addresses.
- * Falls back gracefully to plain input on network failure.
+ * AddressInput — address autocomplete using Google Places AutocompleteService.
+ * Loads the Maps JS SDK once, restricted to South African addresses (country: za).
+ * Falls back to plain text input if the API key is absent or the script fails.
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const GKEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+let _scriptPromise = null;
+function loadPlaces() {
+  if (window.google?.maps?.places) return Promise.resolve();
+  if (_scriptPromise) return _scriptPromise;
+  _scriptPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GKEY}&libraries=places`;
+    s.async = true;
+    s.onload  = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _scriptPromise;
+}
 
 export default function AddressInput({ value, onChange, onSelect, hasError, placeholder, autoFocus }) {
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen]               = useState(false);
   const [loading, setLoading]         = useState(false);
+  const svcRef      = useRef(null);
   const debounceRef = useRef(null);
   const containerRef = useRef(null);
 
-  const fetchSuggestions = useCallback(async (query) => {
-    if (query.length < 4) { setSuggestions([]); setOpen(false); return; }
+  // Load Google Maps script once and initialise AutocompleteService
+  useEffect(() => {
+    if (!GKEY) return;
+    loadPlaces()
+      .then(() => { svcRef.current = new window.google.maps.places.AutocompleteService(); })
+      .catch(() => { /* no-op — falls back to plain input */ });
+  }, []);
+
+  const fetchSuggestions = useCallback((query) => {
+    if (!svcRef.current || query.length < 3) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        q:            query,
-        countrycodes: 'za',
-        format:       'json',
-        limit:        '6',
-        addressdetails: '1',
-      });
-      const res  = await fetch(`${NOMINATIM}?${params}`, {
-        headers: { 'Accept-Language': 'en', 'User-Agent': 'PropertyLens/1.0' },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setSuggestions(data.map(r => ({
-        label:    r.display_name,
-        lat:      parseFloat(r.lat),
-        lng:      parseFloat(r.lon),
-        place_id: r.place_id,
-      })));
-      setOpen(data.length > 0);
-    } catch {
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
-    }
+    svcRef.current.getPlacePredictions(
+      { input: query, componentRestrictions: { country: 'za' } },
+      (predictions, status) => {
+        setLoading(false);
+        const ok = window.google.maps.places.PlacesServiceStatus.OK;
+        if (status !== ok || !predictions?.length) { setSuggestions([]); setOpen(false); return; }
+        setSuggestions(predictions.map(p => ({ label: p.description, place_id: p.place_id })));
+        setOpen(true);
+      }
+    );
   }, []);
 
   const handleChange = (e) => {
     const v = e.target.value;
     onChange(v);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(v), 350);
+    debounceRef.current = setTimeout(() => fetchSuggestions(v), 300);
   };
 
   const handleSelect = (s) => {
@@ -58,11 +67,9 @@ export default function AddressInput({ value, onChange, onSelect, hasError, plac
     if (onSelect) onSelect(s);
   };
 
-  // Close dropdown on outside click
+  // Close on outside click
   useEffect(() => {
-    const handler = (e) => {
-      if (!containerRef.current?.contains(e.target)) setOpen(false);
-    };
+    const handler = (e) => { if (!containerRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
