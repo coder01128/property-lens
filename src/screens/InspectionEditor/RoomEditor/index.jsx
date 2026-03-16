@@ -255,6 +255,8 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
                     <ItemCard
                       key={item.id}
                       item={item}
+                      roomId={roomId}
+                      inspectionId={inspectionId}
                       onChange={patch => updateItem(item.id, patch)}
                       onRemove={() => removeItem(item.id)}
                     />
@@ -852,10 +854,53 @@ function RatingPills({ options, value, colors, onChange }) {
 }
 
 // ─── Item card ────────────────────────────────────────────────────────────
-function ItemCard({ item, onChange, onRemove }) {
+function ItemCard({ item, onChange, onRemove, roomId, inspectionId }) {
   const isEmpty = !item.name?.trim();
+  const isDefective = item.condition && item.condition !== 'Excellent' && item.condition !== 'Good';
+
+  const itemPhotos = useLiveQuery(
+    () => db.photos.where('itemId').equals(item.id).toArray(),
+    [item.id]
+  ) || [];
+
+  const [defectPreview, setDefectPreview] = useState(null);
+
+  const handleDefectPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressPhoto(ev.target.result);
+      setDefectPreview(compressed);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUseDefectPhoto = async () => {
+    if (!defectPreview) return;
+    await db.photos.add({
+      id: crypto.randomUUID(), roomId, inspectionId,
+      itemId: item.id, role: 'defect',
+      sortOrder: itemPhotos.length,
+      dataUrl: defectPreview, thumbnailUrl: defectPreview,
+      width: 0, height: 0,
+      capturedAt: new Date().toISOString(),
+      syncedAt: null, aiQueued: false, aiProcessedAt: null,
+    });
+    setDefectPreview(null);
+  };
+
   return (
     <div id={`item-${item.id}`} className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border-2 border-dashed border-gray-300 dark:border-gray-500 space-y-2">
+      {defectPreview && (
+        <PhotoPreviewModal
+          dataUrl={defectPreview}
+          onUse={handleUseDefectPhoto}
+          onRetake={() => setDefectPreview(null)}
+        />
+      )}
+
       <div className="flex items-center gap-2">
         <input
           className={`flex-1 text-sm font-medium text-gray-900 dark:text-white outline-none placeholder-gray-400 transition-all ${
@@ -893,16 +938,45 @@ function ItemCard({ item, onChange, onRemove }) {
         })}
       </div>
 
-      {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
-        <div className="relative">
-          <textarea
-            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
-            rows={2}
-            placeholder="Describe the defect or issue…"
-            value={item.defects || ''}
-            onChange={e => onChange({ defects: e.target.value })}
-          />
-          <MicButton value={item.defects || ''} onAppend={v => onChange({ defects: v })} className="absolute bottom-1.5 right-1.5" />
+      {isDefective && (
+        <div className="space-y-2">
+          <div className="relative">
+            <textarea
+              className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+              rows={2}
+              placeholder="Describe the defect or issue…"
+              value={item.defects || ''}
+              onChange={e => onChange({ defects: e.target.value })}
+            />
+            <MicButton value={item.defects || ''} onAppend={v => onChange({ defects: v })} className="absolute bottom-1.5 right-1.5" />
+          </div>
+
+          {/* Defect photo thumbnails */}
+          {itemPhotos.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+              {itemPhotos.map(p => (
+                <div key={p.id} className="relative shrink-0">
+                  <img src={p.dataUrl} className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-surface-border" alt="" />
+                  <button
+                    onClick={() => db.photos.delete(p.id)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 border-2 border-white dark:border-surface text-white text-xs font-bold flex items-center justify-center"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Camera button */}
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-gold cursor-pointer active:opacity-70 w-fit">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            {itemPhotos.length > 0 ? 'Add Another Photo' : 'Add Photo of Defect'}
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleDefectPhoto} />
+          </label>
         </div>
       )}
     </div>

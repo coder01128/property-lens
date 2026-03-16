@@ -376,6 +376,48 @@ async function drawRooms(doc, completedRooms, items, photos, y) {
       y = drawItemsTable(doc, roomItems, y);
     }
 
+    // ── Item defect photos ───────────────────────────
+    const defectPhotos = photos.filter(p => p.roomId === room.id && p.role === 'defect');
+    if (defectPhotos.length > 0) {
+      // Group by itemId
+      const byItem = {};
+      for (const p of defectPhotos) {
+        if (!byItem[p.itemId]) byItem[p.itemId] = [];
+        byItem[p.itemId].push(p);
+      }
+
+      y = pb(doc, y, 14);
+      tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('DEFECT PHOTOS', M, y); y += 2;
+      dc(doc, C.border); doc.setLineWidth(0.3);
+      doc.line(M, y, M + CW, y); y += 5;
+
+      for (const [itemId, iPhotos] of Object.entries(byItem)) {
+        const item = roomItems.find(it => it.id === itemId);
+        if (!item) continue;
+
+        y = pb(doc, y, 10);
+        tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text(item.name, M, y); y += 4;
+
+        // Up to 4 photos per row
+        const batch = iPhotos.slice(0, 4);
+        const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl, 600, 0.85)));
+        const perW = (CW - (batch.length - 1) * 3) / batch.length;
+        const MAX_DEFECT_H = 40;
+        const rowH = Math.min(MAX_DEFECT_H, Math.max(...compressed.map(c => perW / c.ar)));
+
+        y = pb(doc, y, rowH + 5);
+        let px = M;
+        for (const { dataUrl: cd, ar } of compressed) {
+          const dh = Math.min(MAX_DEFECT_H, perW / ar);
+          try { doc.addImage(cd, 'JPEG', px, y, perW, dh); } catch {}
+          px += perW + 3;
+        }
+        y += rowH + 6;
+      }
+    }
+
     // ── General notes box ────────────────────────────
     if (room.overallNotes?.trim()) {
       y = pb(doc, y, 14);
