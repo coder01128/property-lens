@@ -590,6 +590,15 @@ function PhotoPreviewModal({ dataUrl, onUse, onRetake }) {
 // ─── Photo strip ──────────────────────────────────────────────────────────
 function PhotoStrip({ photos, roomId, inspectionId, role }) {
   const [preview, setPreview] = useState(null); // compressed dataUrl pending confirm
+  const [btnScale, setBtnScale] = useState(1);
+
+  // Expand-then-shrink animation on first mount to draw attention
+  useEffect(() => {
+    if (photos.length > 0) return; // only animate when no photos yet
+    const t1 = setTimeout(() => setBtnScale(1.2), 120);
+    const t2 = setTimeout(() => setBtnScale(1),   550);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -638,9 +647,12 @@ function PhotoStrip({ photos, roomId, inspectionId, role }) {
             </button>
           </div>
         ))}
-        <label className="shrink-0 w-20 h-16 rounded-lg border-2 border-dashed border-gold/40 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/5 transition-colors">
-          <span className="text-xl">📷</span>
-          <span className="text-xs text-gold font-medium mt-0.5">Add</span>
+        <label
+          className="shrink-0 w-24 h-20 rounded-xl border-2 border-gold bg-gold/10 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/20 active:opacity-80 transition-colors"
+          style={{ transform: `scale(${btnScale})`, transition: 'transform 0.35s ease-in-out' }}
+        >
+          <span className="text-3xl">📷</span>
+          <span className="text-xs text-gold font-bold mt-1">Add Photo</span>
           <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
         </label>
       </div>
