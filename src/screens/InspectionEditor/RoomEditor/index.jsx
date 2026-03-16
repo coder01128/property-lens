@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import TopBar from '../../../components/layout/TopBar.jsx';
 import db from '../../../db/index.js';
@@ -32,11 +32,18 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     db.items.update(itemId, { ...patch, updatedAt: new Date().toISOString() });
   };
 
-  // Auto-enqueue for AI analysis when ≥2 overview photos exist (PRD §5.1)
-  // Must be before early return — hooks cannot be called conditionally
+  // AI analysis — reset when photos drop below 2, re-queue when they reach 2+
   useEffect(() => {
     if (!room || !items) return;
-    if (overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError) {
+    if (overviewPhotos.length < 2 && room.aiAnalysed) {
+      // Photos removed — reset so analysis re-runs when new photos are added
+      db.rooms.update(roomId, {
+        aiAnalysed: false, aiSuggested: false,
+        aiSuggestedCondition: null, aiSuggestedNotes: null,
+        aiConfidence: null, aiError: false, aiErrorMsg: null,
+        updatedAt: new Date().toISOString(),
+      });
+    } else if (overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError) {
       enqueueRoom(inspectionId, roomId).then(() => processQueue());
     }
   }, [overviewPhotos.length, room?.aiAnalysed, room?.aiError, inspectionId, roomId]);
@@ -138,13 +145,20 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
 
         {/* General notes — just below photos for quick capture */}
         <Section title="General Notes">
-          <textarea
-            className="w-full px-3 py-2.5 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
-            rows={3}
-            placeholder="Additional observations for this room…"
-            value={room.overallNotes || ''}
-            onChange={e => updateRoom({ overallNotes: e.target.value })}
-          />
+          <div className="relative">
+            <textarea
+              className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+              rows={3}
+              placeholder="Additional observations for this room…"
+              value={room.overallNotes || ''}
+              onChange={e => updateRoom({ overallNotes: e.target.value })}
+            />
+            <MicButton
+              value={room.overallNotes || ''}
+              onAppend={v => updateRoom({ overallNotes: v })}
+              className="absolute bottom-2 right-1.5"
+            />
+          </div>
         </Section>
 
         {/* AI Suggestion banner */}
@@ -473,6 +487,7 @@ function ItemCard({ item, onChange, onRemove }) {
           value={item.name}
           onChange={e => onChange({ name: e.target.value })}
         />
+        <MicButton value={item.name} onAppend={v => onChange({ name: v })} />
         <button onClick={onRemove} className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -500,15 +515,65 @@ function ItemCard({ item, onChange, onRemove }) {
       </div>
 
       {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
-        <textarea
-          className="w-full px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-surface-overlay border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
-          rows={2}
-          placeholder="Describe the defect or issue…"
-          value={item.defects || ''}
-          onChange={e => onChange({ defects: e.target.value })}
-        />
+        <div className="relative">
+          <textarea
+            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-gray-50 dark:bg-surface-overlay border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+            rows={2}
+            placeholder="Describe the defect or issue…"
+            value={item.defects || ''}
+            onChange={e => onChange({ defects: e.target.value })}
+          />
+          <MicButton value={item.defects || ''} onAppend={v => onChange({ defects: v })} className="absolute bottom-1.5 right-1.5" />
+        </div>
       )}
     </div>
+  );
+}
+
+// ─── Mic button (Web Speech API) ──────────────────────────────────────────
+function MicButton({ value, onAppend, className = '' }) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef(null);
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+
+  const toggle = () => {
+    if (listening) {
+      recRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const rec = new SR();
+    rec.lang = 'en-ZA';
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const t = e.results[0][0].transcript;
+      onAppend(value ? value + ' ' + t : t);
+      setListening(false);
+    };
+    rec.onend  = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+    recRef.current = rec;
+    setListening(true);
+  };
+
+  return (
+    <button
+      type="button"
+      onMouseDown={e => e.preventDefault()} // prevent textarea blur
+      onClick={toggle}
+      className={`p-1.5 rounded-full transition-colors ${
+        listening
+          ? 'text-red-500 animate-pulse'
+          : 'text-gray-400 dark:text-gray-500 hover:text-gold'
+      } ${className}`}
+      aria-label={listening ? 'Stop recording' : 'Dictate'}
+    >
+      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.364 9.172a.75.75 0 0 1 .736.912A7.001 7.001 0 0 1 12.75 17.92V20h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5v-2.08a7.001 7.001 0 0 1-6.35-6.836.75.75 0 0 1 1.486-.176A5.5 5.5 0 0 0 17.5 11a5.47 5.47 0 0 0-.048-.64.75.75 0 0 1 .912-.188z"/>
+      </svg>
+    </button>
   );
 }
 
