@@ -39,6 +39,7 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     const el = document.getElementById(`item-${newItemId}`);
     if (el) {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      el.querySelector('input')?.focus();
       setNewItemId(null);
     }
   }, [items, newItemId]);
