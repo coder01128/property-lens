@@ -9,6 +9,7 @@ const uid = () => crypto.randomUUID();
 
 export default function RoomEditor({ inspectionId, roomId, onBack }) {
   const [completeErr, setCompleteErr] = useState('');
+  const [newItemId, setNewItemId] = useState(null);
 
   const room  = useLiveQuery(() => db.rooms.get(roomId), [roomId]);
   const items = useLiveQuery(
@@ -31,6 +32,16 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
   const updateItem = (itemId, patch) => {
     db.items.update(itemId, { ...patch, updatedAt: new Date().toISOString() });
   };
+
+  // Scroll to newly added item
+  useEffect(() => {
+    if (!newItemId || !items) return;
+    const el = document.getElementById(`item-${newItemId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setNewItemId(null);
+    }
+  }, [items, newItemId]);
 
   // AI analysis — reset when photos drop below 2, re-queue when they reach 2+
   useEffect(() => {
@@ -68,8 +79,10 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
 
   const addItem = async () => {
     const now = new Date().toISOString();
+    const id = uid();
+    setNewItemId(id);
     await db.items.add({
-      id: uid(), roomId, inspectionId,
+      id, roomId, inspectionId,
       name: '', isDefault: false, sortOrder: items.length,
       condition: null, cleanliness: null, defects: '', repairNotes: '',
       isRated: false, aiSuggested: false, aiAccepted: false,
@@ -194,7 +207,7 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
         <Section
           title="Inspection Items"
           action={
-            <button onClick={addItem} className="text-xs font-bold text-gold px-3 py-2 -mr-1 active:opacity-70">+ Add Item</button>
+            <button onClick={addItem} className="text-sm font-bold text-surface bg-gold px-4 py-1.5 rounded-card active:opacity-80">+ Add Item</button>
           }
         >
           {items.length === 0 ? (
@@ -479,7 +492,7 @@ function RatingPills({ options, value, colors, onChange }) {
 // ─── Item card ────────────────────────────────────────────────────────────
 function ItemCard({ item, onChange, onRemove }) {
   return (
-    <div className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border space-y-2">
+    <div id={`item-${item.id}`} className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border space-y-2">
       <div className="flex items-center gap-2">
         <input
           className="flex-1 text-sm font-medium bg-transparent text-gray-900 dark:text-white outline-none placeholder-gray-400 border-b border-transparent focus:border-gold pb-0.5"
@@ -487,7 +500,6 @@ function ItemCard({ item, onChange, onRemove }) {
           value={item.name}
           onChange={e => onChange({ name: e.target.value })}
         />
-        <MicButton value={item.name} onAppend={v => onChange({ name: v })} />
         <button onClick={onRemove} className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors">
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -517,7 +529,7 @@ function ItemCard({ item, onChange, onRemove }) {
       {item.condition && item.condition !== 'Excellent' && item.condition !== 'Good' && (
         <div className="relative">
           <textarea
-            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-surface-card border border-gold/60 text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
             rows={2}
             placeholder="Describe the defect or issue…"
             value={item.defects || ''}
