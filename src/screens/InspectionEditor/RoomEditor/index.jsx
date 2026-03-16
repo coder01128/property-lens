@@ -349,7 +349,7 @@ async function compressPhoto(dataUrl, maxPx = 1200, quality = 0.85) {
 // ─── Photo preview modal ───────────────────────────────────────────────────
 function PhotoPreviewModal({ dataUrl, onUse, onRetake }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex flex-col bg-black/90" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <span className="text-sm font-semibold text-white">Preview Photo</span>
         <button onClick={onRetake} className="text-sm text-gray-400 active:opacity-70">Retake</button>
