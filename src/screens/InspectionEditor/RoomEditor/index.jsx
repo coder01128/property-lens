@@ -491,11 +491,16 @@ function RatingPills({ options, value, colors, onChange }) {
 
 // ─── Item card ────────────────────────────────────────────────────────────
 function ItemCard({ item, onChange, onRemove }) {
+  const isEmpty = !item.name?.trim();
   return (
     <div id={`item-${item.id}`} className="p-3 rounded-card bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border space-y-2">
       <div className="flex items-center gap-2">
         <input
-          className="flex-1 text-sm font-medium bg-transparent text-gray-900 dark:text-white outline-none placeholder-gray-400 border-b border-transparent focus:border-gold pb-0.5"
+          className={`flex-1 text-sm font-medium text-gray-900 dark:text-white outline-none placeholder-gray-400 transition-all ${
+            isEmpty
+              ? 'px-3 py-2 rounded-lg bg-white dark:bg-zinc-700 border border-gold/60 placeholder-gray-300 dark:placeholder-gray-400 focus:border-gold focus:ring-1 focus:ring-gold/30'
+              : 'bg-transparent border-b border-transparent focus:border-gold pb-0.5'
+          }`}
           placeholder="Item name (e.g. Ceiling Fan)"
           value={item.name}
           onChange={e => onChange({ name: e.target.value })}
