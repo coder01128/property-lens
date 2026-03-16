@@ -33,12 +33,12 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     db.items.update(itemId, { ...patch, updatedAt: new Date().toISOString() });
   };
 
-  // Scroll to newly added item
+  // Scroll to bottom when a new item is added so the full input is visible
   useEffect(() => {
     if (!newItemId || !items) return;
     const el = document.getElementById(`item-${newItemId}`);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       setNewItemId(null);
     }
   }, [items, newItemId]);
