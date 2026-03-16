@@ -21,8 +21,6 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     [roomId]
   );
 
-  const preset        = ROOM_PRESETS.find(r => r.typeKey === room?.typeKey)
-    || SPECIAL_ROOMS.find(r => r.typeKey === room?.typeKey);
   const overviewPhotos = (photos || []).filter(p => p.role === 'overview');
 
   const updateRoom = (patch) => {
@@ -44,9 +42,10 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     }
   }, [items, newItemId]);
 
-  // AI analysis — reset when photos drop below 2, re-queue when they reach 2+
+  // AI analysis — skip for special rooms; reset when photos drop below 2, re-queue when they reach 2+
   useEffect(() => {
     if (!room || !items) return;
+    if (room.isSpecial) return;
     if (overviewPhotos.length < 2 && room.aiAnalysed) {
       // Photos removed — reset so analysis re-runs when new photos are added
       db.rooms.update(roomId, {
@@ -96,138 +95,156 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
   };
 
   const handleMarkComplete = async () => {
-    const namedItems = items.filter(it => it.name?.trim());
-    const hasNotes   = room.overallNotes?.trim();
-    if (namedItems.length === 0 && !hasNotes) {
-      setCompleteErr('Add at least one item or a general note before completing this room.');
-      return;
-    }
-    if (overviewPhotos.length < 2) {
-      setCompleteErr(`Add at least 2 overview photos (currently ${overviewPhotos.length}).`);
-      return;
+    if (room.isSpecial) {
+      if (overviewPhotos.length < 1) {
+        setCompleteErr('Add at least 1 photo before completing.');
+        return;
+      }
+    } else {
+      const namedItems = items.filter(it => it.name?.trim());
+      const hasNotes   = room.overallNotes?.trim();
+      if (namedItems.length === 0 && !hasNotes) {
+        setCompleteErr('Add at least one item or a general note before completing this room.');
+        return;
+      }
+      if (overviewPhotos.length < 2) {
+        setCompleteErr(`Add at least 2 overview photos (currently ${overviewPhotos.length}).`);
+        return;
+      }
     }
     setCompleteErr('');
     await updateRoom({ isComplete: true });
     onBack();
   };
 
+  const preset        = ROOM_PRESETS.find(r => r.typeKey === room?.typeKey)
+    || SPECIAL_ROOMS.find(r => r.typeKey === room?.typeKey);
+
   return (
     <div className="min-h-screen bg-white dark:bg-surface">
       <TopBar
         title={room.displayName}
-        subtitle={preset ? `${preset.icon} Room Inspection` : 'Room Inspection'}
+        subtitle={preset ? `${preset.icon} ${room.isSpecial ? 'Special Card' : 'Room Inspection'}` : 'Room Inspection'}
         back={onBack}
       />
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-5 pb-8">
-        {/* Special card dedicated fields */}
-        {room.isSpecial && (
-          <SpecialCardSection room={room} onUpdate={updateRoom} />
-        )}
 
-        {/* Overview photos */}
-        <Section title="Overview Photos" badge={`${overviewPhotos.length} / 2 min`}>
-          <PhotoStrip
+        {room.isSpecial ? (
+          <SpecialRoomContent
+            room={room}
             photos={overviewPhotos}
             roomId={roomId}
             inspectionId={inspectionId}
-            role="overview"
+            onUpdate={updateRoom}
           />
-          {overviewPhotos.length < 2 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              At least 2 overview photos required to complete this room.
-            </p>
-          )}
-          {overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError && (
-            <p className="text-xs text-gold mt-1">⏳ AI analysis queued…</p>
-          )}
-          {room.aiError && (
-            <div className="mt-1 space-y-1">
-              <p className="text-xs text-red-400">⚠ AI analysis failed: {room.aiErrorMsg || 'unknown error'}</p>
-              <button
-                onClick={() => {
-                  updateRoom({ aiError: false, aiErrorMsg: null, aiAnalysed: false });
-                  enqueueRoom(inspectionId, roomId).then(() => processQueue());
-                }}
-                className="text-xs text-gold underline"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-        </Section>
+        ) : (
+          <>
+            {/* Overview photos */}
+            <Section title="Overview Photos" badge={`${overviewPhotos.length} / 2 min`}>
+              <PhotoStrip
+                photos={overviewPhotos}
+                roomId={roomId}
+                inspectionId={inspectionId}
+                role="overview"
+              />
+              {overviewPhotos.length < 2 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  At least 2 overview photos required to complete this room.
+                </p>
+              )}
+              {overviewPhotos.length >= 2 && !room.aiAnalysed && !room.aiError && (
+                <p className="text-xs text-gold mt-1">⏳ AI analysis queued…</p>
+              )}
+              {room.aiError && (
+                <div className="mt-1 space-y-1">
+                  <p className="text-xs text-red-400">⚠ AI analysis failed: {room.aiErrorMsg || 'unknown error'}</p>
+                  <button
+                    onClick={() => {
+                      updateRoom({ aiError: false, aiErrorMsg: null, aiAnalysed: false });
+                      enqueueRoom(inspectionId, roomId).then(() => processQueue());
+                    }}
+                    className="text-xs text-gold underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </Section>
 
-        {/* General notes — just below photos for quick capture */}
-        <Section title="General Notes">
-          <div className="relative">
-            <textarea
-              className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
-              rows={3}
-              placeholder="Additional observations for this room…"
-              value={room.overallNotes || ''}
-              onChange={e => updateRoom({ overallNotes: e.target.value })}
-            />
-            <MicButton
-              value={room.overallNotes || ''}
-              onAppend={v => updateRoom({ overallNotes: v })}
-              className="absolute bottom-2 right-1.5"
-            />
-          </div>
-        </Section>
-
-        {/* AI Suggestion banner */}
-        {room.aiSuggested && room.aiSuggestedCondition && (
-          <AISuggestionBanner
-            room={room}
-            onAccept={handleAcceptSuggestion}
-            onDismiss={handleDismissSuggestion}
-          />
-        )}
-
-        {/* Overall condition */}
-        <Section title="Overall Room Condition">
-          <RatingPills
-            options={CONDITION_OPTIONS}
-            value={room.overallCondition || null}
-            colors={CONDITION_COLORS}
-            onChange={v => updateRoom({ overallCondition: v })}
-          />
-        </Section>
-
-        {/* Cleanliness */}
-        <Section title="Cleanliness">
-          <RatingPills
-            options={CLEANLINESS_OPTIONS}
-            value={room.cleanliness || null}
-            colors={CLEANLINESS_COLORS}
-            onChange={v => updateRoom({ cleanliness: v })}
-          />
-        </Section>
-
-        {/* Items */}
-        <Section
-          title="Inspection Items"
-          action={
-            <button onClick={addItem} className="text-sm font-bold text-surface bg-gold px-4 py-1.5 rounded-card active:opacity-80">+ Add Item</button>
-          }
-        >
-          {items.length === 0 ? (
-            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
-              No items yet — tap "+ Add Item" to start
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {items.map(item => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onChange={patch => updateItem(item.id, patch)}
-                  onRemove={() => removeItem(item.id)}
+            {/* General notes */}
+            <Section title="General Notes">
+              <div className="relative">
+                <textarea
+                  className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+                  rows={3}
+                  placeholder="Additional observations for this room…"
+                  value={room.overallNotes || ''}
+                  onChange={e => updateRoom({ overallNotes: e.target.value })}
                 />
-              ))}
-            </div>
-          )}
-        </Section>
+                <MicButton
+                  value={room.overallNotes || ''}
+                  onAppend={v => updateRoom({ overallNotes: v })}
+                  className="absolute bottom-2 right-1.5"
+                />
+              </div>
+            </Section>
+
+            {/* AI Suggestion banner */}
+            {room.aiSuggested && room.aiSuggestedCondition && (
+              <AISuggestionBanner
+                room={room}
+                onAccept={handleAcceptSuggestion}
+                onDismiss={handleDismissSuggestion}
+              />
+            )}
+
+            {/* Overall condition */}
+            <Section title="Overall Room Condition">
+              <RatingPills
+                options={CONDITION_OPTIONS}
+                value={room.overallCondition || null}
+                colors={CONDITION_COLORS}
+                onChange={v => updateRoom({ overallCondition: v })}
+              />
+            </Section>
+
+            {/* Cleanliness */}
+            <Section title="Cleanliness">
+              <RatingPills
+                options={CLEANLINESS_OPTIONS}
+                value={room.cleanliness || null}
+                colors={CLEANLINESS_COLORS}
+                onChange={v => updateRoom({ cleanliness: v })}
+              />
+            </Section>
+
+            {/* Items */}
+            <Section
+              title="Inspection Items"
+              action={
+                <button onClick={addItem} className="text-sm font-bold text-surface bg-gold px-4 py-1.5 rounded-card active:opacity-80">+ Add Item</button>
+              }
+            >
+              {items.length === 0 ? (
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
+                  No items yet — tap "+ Add Item" to start
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {items.map(item => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      onChange={patch => updateItem(item.id, patch)}
+                      onRemove={() => removeItem(item.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
+          </>
+        )}
 
         {/* Validation error */}
         {completeErr && (
@@ -300,60 +317,84 @@ function AISuggestionBanner({ room, onAccept, onDismiss }) {
   );
 }
 
-// ─── Special card dedicated fields ────────────────────────────────────────
-function SpecialCardSection({ room, onUpdate }) {
-  const { specialType, meterReading, keyCount } = room;
+// ─── Special room layout (Keys / Electricity Meter / Water Meter) ─────────
+function SpecialRoomContent({ room, photos, roomId, inspectionId, onUpdate }) {
+  const isMeter = room.specialType === 'electricity_meter' || room.specialType === 'water_meter';
+  const isKeys  = room.specialType === 'keys';
+  const meterUnit = room.specialType === 'electricity_meter' ? 'kWh' : 'kL';
 
-  if (specialType === 'keys') {
-    return (
-      <div className="p-4 rounded-card bg-gold/5 border border-gold/20 space-y-3">
-        <p className="text-xs font-bold uppercase tracking-widest text-gold">Key Count</p>
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-700 dark:text-gray-200 flex-1">Number of complete key sets</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onUpdate({ keyCount: Math.max(0, (keyCount || 0) - 1) })}
-              className="w-8 h-8 rounded-full border border-gray-300 dark:border-surface-border text-gray-600 dark:text-gray-300 font-bold text-lg flex items-center justify-center active:opacity-70"
-            >
-              −
-            </button>
-            <span className="text-xl font-bold text-gray-900 dark:text-white w-8 text-center">
-              {keyCount ?? 0}
-            </span>
-            <button
-              onClick={() => onUpdate({ keyCount: (keyCount || 0) + 1 })}
-              className="w-8 h-8 rounded-full border border-gold text-gold font-bold text-lg flex items-center justify-center active:opacity-70"
-            >
-              +
-            </button>
+  return (
+    <div className="space-y-5">
+      {/* Photos — min 1 required */}
+      <Section title="Photos" badge={`${photos.length} / 1 min`}>
+        <PhotoStrip photos={photos} roomId={roomId} inspectionId={inspectionId} role="overview" />
+        {photos.length < 1 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+            At least 1 photo required to complete.
+          </p>
+        )}
+      </Section>
+
+      {/* Keys */}
+      {isKeys && (
+        <Section title="Description">
+          <div className="relative">
+            <textarea
+              className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+              rows={3}
+              placeholder="Describe the keys — e.g. 2 × front door, 1 × garage…"
+              value={room.overallNotes || ''}
+              onChange={e => onUpdate({ overallNotes: e.target.value })}
+            />
+            <MicButton
+              value={room.overallNotes || ''}
+              onAppend={v => onUpdate({ overallNotes: v })}
+              className="absolute bottom-2 right-1.5"
+            />
           </div>
-        </div>
-      </div>
-    );
-  }
+        </Section>
+      )}
 
-  if (specialType === 'electricity_meter' || specialType === 'water_meter') {
-    const label = specialType === 'electricity_meter' ? 'Electricity Reading (kWh)' : 'Water Reading (kL)';
-    const placeholder = specialType === 'electricity_meter' ? 'e.g. 12345.6' : 'e.g. 9876.5';
-    return (
-      <div className="p-4 rounded-card bg-gold/5 border border-gold/20 space-y-3">
-        <p className="text-xs font-bold uppercase tracking-widest text-gold">Meter Reading</p>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">{label}</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            className="w-full px-4 py-3 rounded-card text-sm bg-white dark:bg-surface-card border border-gray-200 dark:border-surface-border outline-none focus:border-gold text-gray-900 dark:text-white placeholder-gray-400"
-            placeholder={placeholder}
-            value={meterReading || ''}
-            onChange={e => onUpdate({ meterReading: e.target.value })}
-          />
-        </div>
-      </div>
-    );
-  }
+      {/* Meter fields */}
+      {isMeter && (
+        <>
+          <Section title="Meter Location">
+            <div className="relative">
+              <textarea
+                className="w-full px-3 py-2.5 pr-9 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-gold resize-none"
+                rows={2}
+                placeholder="e.g. Outside wall, north side of property…"
+                value={room.meterLocation || ''}
+                onChange={e => onUpdate({ meterLocation: e.target.value })}
+              />
+              <MicButton value={room.meterLocation || ''} onAppend={v => onUpdate({ meterLocation: v })} className="absolute bottom-2 right-1.5" />
+            </div>
+          </Section>
 
-  return null;
+          <Section title={`Meter Reading (${meterUnit})`}>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="w-full px-3 py-2.5 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border outline-none focus:border-gold text-gray-900 dark:text-white placeholder-gray-400"
+              placeholder={room.specialType === 'electricity_meter' ? 'e.g. 12345.6' : 'e.g. 9876.5'}
+              value={room.meterReading || ''}
+              onChange={e => onUpdate({ meterReading: e.target.value })}
+            />
+          </Section>
+
+          <Section title="Meter Number">
+            <input
+              type="text"
+              className="w-full px-3 py-2.5 rounded-card text-sm bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border outline-none focus:border-gold text-gray-900 dark:text-white placeholder-gray-400"
+              placeholder="e.g. MTR-00123456"
+              value={room.meterNumber || ''}
+              onChange={e => onUpdate({ meterNumber: e.target.value })}
+            />
+          </Section>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Photo compression (1200px max, JPEG 0.85) ────────────────────────────
