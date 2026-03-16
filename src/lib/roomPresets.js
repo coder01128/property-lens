@@ -79,6 +79,7 @@ export const ROOM_PRESETS = [
       { name: 'Curtains / Blinds' },
       { name: 'Built-in Cupboards' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Door', 'Windows', 'Curtains / Blinds', 'Built-in Cupboards', 'Light Fitting', 'Power Points', 'Bed', 'Mattress', 'Bedside Table', 'Wardrobe', 'Mirror', 'Fan / AC Unit'],
   },
   {
     typeKey: 'bathroom',
@@ -95,6 +96,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Power Points' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Tiles', 'Door', 'Toilet', 'Basin / Vanity', 'Bath', 'Shower', 'Shower Screen / Door', 'Mirror', 'Cabinet', 'Towel Rail', 'Extractor Fan', 'Light Fitting', 'Toilet Roll Holder'],
   },
   {
     typeKey: 'kitchen',
@@ -111,6 +113,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Power Points' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Countertop', 'Sink', 'Stove / Hob', 'Oven', 'Extractor Fan', 'Fridge', 'Dishwasher', 'Microwave', 'Cupboards', 'Tiles / Splashback', 'Light Fitting', 'Power Points'],
   },
   {
     typeKey: 'living_area',
@@ -127,6 +130,7 @@ export const ROOM_PRESETS = [
       { name: 'Curtains / Blinds' },
       { name: 'Fireplace' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Windows', 'Door', 'Curtains / Blinds', 'Sofa', 'Coffee Table', 'TV Unit', 'Light Fitting', 'Power Points', 'Fireplace', 'Rug / Carpet', 'Air Conditioner'],
   },
   {
     typeKey: 'dining_room',
@@ -142,6 +146,7 @@ export const ROOM_PRESETS = [
       { name: 'Power Points' },
       { name: 'Curtains / Blinds' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Windows', 'Curtains / Blinds', 'Dining Table', 'Dining Chairs', 'Display Cabinet', 'Light Fitting', 'Power Points'],
   },
   {
     typeKey: 'entrance_hall',
@@ -156,6 +161,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Intercom / Doorbell' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Front Door', 'Security Gate', 'Light Fitting', 'Intercom / Doorbell', 'Coat Hooks', 'Mirror'],
   },
   {
     typeKey: 'garage',
@@ -169,6 +175,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Power Points' },
     ],
+    pickerItems: ['Garage Door', 'Garage Door Motor', 'Floor', 'Walls', 'Ceiling', 'Light Fitting', 'Power Points', 'Shelving', 'Workbench'],
   },
   {
     typeKey: 'garden',
@@ -184,6 +191,7 @@ export const ROOM_PRESETS = [
       { name: 'Garden Shed' },
       { name: 'Irrigation System' },
     ],
+    pickerItems: ['Lawn', 'Fencing', 'Gate', 'Paving / Driveway', 'Pool', 'Exterior Walls', 'Garden Shed', 'Irrigation System', 'Outdoor Lighting'],
   },
   {
     typeKey: 'toilet',
@@ -197,6 +205,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Door' },
     ],
+    pickerItems: ['Walls', 'Tiles', 'Door', 'Toilet', 'Basin', 'Mirror', 'Light Fitting', 'Towel Rail'],
   },
   {
     typeKey: 'laundry',
@@ -210,6 +219,7 @@ export const ROOM_PRESETS = [
       { name: 'Light Fixtures' },
       { name: 'Power Points' },
     ],
+    pickerItems: ['Walls', 'Floor', 'Door', 'Plumbing Connections', 'Washing Machine Point', 'Sink', 'Shelving', 'Light Fitting', 'Power Points'],
   },
   {
     typeKey: 'study',
@@ -225,6 +235,7 @@ export const ROOM_PRESETS = [
       { name: 'Power Points' },
       { name: 'Built-in Shelving' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Windows', 'Door', 'Curtains / Blinds', 'Built-in Shelving', 'Light Fitting', 'Power Points'],
   },
   {
     typeKey: 'balcony',
@@ -237,6 +248,7 @@ export const ROOM_PRESETS = [
       { name: 'Sliding Door' },
       { name: 'Outdoor Light' },
     ],
+    pickerItems: ['Floor / Tiles', 'Railing / Balustrade', 'Walls', 'Sliding Door', 'Outdoor Light', 'Braai Area', 'Patio Furniture'],
   },
   {
     typeKey: 'storeroom',
@@ -248,6 +260,7 @@ export const ROOM_PRESETS = [
       { name: 'Door / Lock' },
       { name: 'Light Fixtures' },
     ],
+    pickerItems: ['Floor', 'Walls', 'Door / Lock', 'Light Fitting', 'Shelving'],
   },
   {
     typeKey: 'passage',
@@ -259,12 +272,14 @@ export const ROOM_PRESETS = [
       { name: 'Floor' },
       { name: 'Light Fixtures' },
     ],
+    pickerItems: ['Walls', 'Ceiling', 'Floor', 'Light Fitting'],
   },
   {
     typeKey: 'custom',
     label:   'Custom Area',
     icon:    '✏️',
     defaultItems: [],
+    pickerItems: [],
   },
 ];
 

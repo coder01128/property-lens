@@ -120,6 +120,25 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
   const preset        = ROOM_PRESETS.find(r => r.typeKey === room?.typeKey)
     || SPECIAL_ROOMS.find(r => r.typeKey === room?.typeKey);
 
+  // Show item picker on first visit (no items yet, not a special room, preset has picker items)
+  if (!room.pickerDone && items.length === 0 && !room.isSpecial && preset?.pickerItems?.length > 0) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-surface">
+        <TopBar
+          title={room.displayName}
+          subtitle={`${preset.icon} What's in this room?`}
+          back={onBack}
+        />
+        <ItemPicker
+          preset={preset}
+          roomId={roomId}
+          inspectionId={inspectionId}
+          onDone={() => {}} // useLiveQuery re-renders automatically when pickerDone is set
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-surface">
       <TopBar
@@ -501,6 +520,136 @@ function SpecialRoomContent({ room, photos, roomId, inspectionId, onUpdate }) {
         </>
       )}
     </div>
+  );
+}
+
+// ─── Item picker (first-visit room setup) ─────────────────────────────────
+function ItemPicker({ preset, roomId, inspectionId, onDone }) {
+  const [selections, setSelections] = useState([]); // [{label, count}]
+
+  const handleCardClick = (label) => {
+    const existing = selections.find(s => s.label === label);
+    if (existing) {
+      setSelections(selections.map(s => s.label === label ? { ...s, count: s.count + 1 } : s));
+    } else {
+      setSelections([...selections, { label, count: 1 }]);
+    }
+  };
+
+  const handleRemove = (label) => {
+    setSelections(selections.filter(s => s.label !== label));
+  };
+
+  const handleLetsGo = async () => {
+    const now = new Date().toISOString();
+    let sortOrder = 0;
+    for (const { label, count } of selections.filter(s => s.count > 0)) {
+      if (count === 1) {
+        await db.items.add({
+          id: crypto.randomUUID(), roomId, inspectionId,
+          name: label, isDefault: true, sortOrder: sortOrder++,
+          condition: null, cleanliness: null, defects: '', repairNotes: '',
+          isRated: false, aiSuggested: false, aiAccepted: false,
+          createdAt: now, updatedAt: now,
+        });
+      } else {
+        for (let i = 1; i <= count; i++) {
+          await db.items.add({
+            id: crypto.randomUUID(), roomId, inspectionId,
+            name: `${label} ${i}`, isDefault: true, sortOrder: sortOrder++,
+            condition: null, cleanliness: null, defects: '', repairNotes: '',
+            isRated: false, aiSuggested: false, aiAccepted: false,
+            createdAt: now, updatedAt: now,
+          });
+        }
+      }
+    }
+    await db.rooms.update(roomId, { pickerDone: true, updatedAt: new Date().toISOString() });
+    onDone();
+  };
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-surface flex flex-col">
+      {/* Content */}
+      <div className="flex-1 max-w-lg mx-auto w-full px-4 pt-4 pb-36 space-y-4">
+        <div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Tap items to add to this inspection. Tap again to add more of the same item.
+          </p>
+        </div>
+
+        {/* 2-col grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {preset.pickerItems.map(label => {
+            const sel = selections.find(s => s.label === label);
+            const count = sel?.count || 0;
+            return (
+              <PickerCard
+                key={label}
+                label={label}
+                count={count}
+                onClick={() => handleCardClick(label)}
+                onRemove={() => handleRemove(label)}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sticky "Let's Go" button */}
+      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white dark:bg-surface border-t border-gray-100 dark:border-surface-border z-40">
+        <button
+          onClick={handleLetsGo}
+          className="w-full py-4 rounded-card bg-gold text-surface font-bold text-lg active:opacity-90"
+        >
+          Let's Go →
+        </button>
+        {selections.length === 0 && (
+          <button
+            onClick={() => db.rooms.update(roomId, { pickerDone: true, updatedAt: new Date().toISOString() }).then(onDone)}
+            className="w-full mt-2 py-2 text-sm text-gray-400 dark:text-gray-500 active:opacity-70"
+          >
+            Skip — I'll add items manually
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Picker card ──────────────────────────────────────────────────────────
+function PickerCard({ label, count, onClick, onRemove }) {
+  const selected = count > 0;
+  return (
+    <button
+      onClick={onClick}
+      className={`relative text-left p-3 rounded-card border-2 transition-all active:scale-95 ${
+        selected
+          ? 'bg-gold/10 border-gold dark:bg-gold/15 dark:border-gold'
+          : 'bg-gray-50 dark:bg-surface-raised border-dashed border-gray-300 dark:border-gray-500 dark:hover:border-gold/60'
+      }`}
+    >
+      <span className="block text-xs font-semibold text-gray-800 dark:text-gray-100 leading-tight pr-5">
+        {label}
+      </span>
+      {selected && (
+        <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-gold">
+          × {count}
+        </span>
+      )}
+      {selected && (
+        <span
+          role="button"
+          onClickCapture={e => { e.stopPropagation(); onRemove(); }}
+          className="absolute top-2 right-2 text-gray-900 dark:text-gold hover:text-red-400 transition-colors"
+          aria-label={`Remove ${label}`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </span>
+      )}
+    </button>
   );
 }
 

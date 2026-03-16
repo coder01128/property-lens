@@ -42,7 +42,6 @@ export default function InspectionEditor() {
     const now = new Date().toISOString();
     const existingRooms = await db.rooms.where('inspectionId').equals(inspectionId).toArray();
     const displayName = resolveDisplayName(typeKey, existingRooms, customName);
-    const preset = ROOM_PRESETS.find(r => r.typeKey === typeKey);
     const sortOrder = existingRooms.filter(r => !r.isSpecial).length + SPECIAL_ROOMS.length;
     const roomId = uid();
 
@@ -53,18 +52,6 @@ export default function InspectionEditor() {
       aiAnalysed: false, aiError: false, aiErrorMsg: null,
       meterReading: '', keyCount: null,
     });
-
-    // Seed default items
-    const defaultItems = preset?.defaultItems || [];
-    for (let i = 0; i < defaultItems.length; i++) {
-      await db.items.add({
-        id: uid(), roomId, inspectionId,
-        name: defaultItems[i].name, isDefault: true, sortOrder: i,
-        condition: null, cleanliness: null, defects: '', repairNotes: '',
-        isRated: false, aiSuggested: false, aiAccepted: false,
-        createdAt: now, updatedAt: now,
-      });
-    }
 
     setAddRoomOpen(false);
     navigate(`/inspect/${inspectionId}/room/${roomId}`);
