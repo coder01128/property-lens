@@ -388,7 +388,7 @@ async function drawRooms(doc, completedRooms, items, photos, y) {
 
       y = pb(doc, y, 14);
       tc(doc, C.muted); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('DEFECT PHOTOS', M, y); y += 2;
+      doc.text('ITEM PHOTOS', M, y); y += 2;
       dc(doc, C.border); doc.setLineWidth(0.3);
       doc.line(M, y, M + CW, y); y += 5;
 

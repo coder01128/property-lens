@@ -938,47 +938,46 @@ function ItemCard({ item, onChange, onRemove, roomId, inspectionId }) {
         })}
       </div>
 
+      {/* Defect description — only when condition is not Good/Excellent */}
       {isDefective && (
-        <div className="space-y-2">
-          <div className="relative">
-            <textarea
-              className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
-              rows={2}
-              placeholder="Describe the defect or issue…"
-              value={item.defects || ''}
-              onChange={e => onChange({ defects: e.target.value })}
-            />
-            <MicButton value={item.defects || ''} onAppend={v => onChange({ defects: v })} className="absolute bottom-1.5 right-1.5" />
-          </div>
-
-          {/* Defect photo thumbnails */}
-          {itemPhotos.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
-              {itemPhotos.map(p => (
-                <div key={p.id} className="relative shrink-0">
-                  <img src={p.dataUrl} className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-surface-border" alt="" />
-                  <button
-                    onClick={() => db.photos.delete(p.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 border-2 border-white dark:border-surface text-white text-xs font-bold flex items-center justify-center"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Camera button */}
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-gold cursor-pointer active:opacity-70 w-fit">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            {itemPhotos.length > 0 ? 'Add Another Photo' : 'Add Photo of Defect'}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleDefectPhoto} />
-          </label>
+        <div className="relative">
+          <textarea
+            className="w-full px-3 py-2 pr-9 rounded-lg text-sm bg-white dark:bg-zinc-700 border border-gold/60 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-400 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 resize-none"
+            rows={2}
+            placeholder="Describe the defect or issue…"
+            value={item.defects || ''}
+            onChange={e => onChange({ defects: e.target.value })}
+          />
+          <MicButton value={item.defects || ''} onAppend={v => onChange({ defects: v })} className="absolute bottom-1.5 right-1.5" />
         </div>
       )}
+
+      {/* Photo section — required for every item */}
+      <div className="space-y-2">
+        {itemPhotos.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {itemPhotos.map(p => (
+              <div key={p.id} className="relative shrink-0">
+                <img src={p.dataUrl} className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-surface-border" alt="" />
+                <button
+                  onClick={() => db.photos.delete(p.id)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 border-2 border-white dark:border-surface text-white text-xs font-bold flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:opacity-70 w-fit ${itemPhotos.length === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-gold'}`}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          {itemPhotos.length === 0 ? 'Add Photo (required)' : 'Add Another Photo'}
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleDefectPhoto} />
+        </label>
+      </div>
     </div>
   );
 }
