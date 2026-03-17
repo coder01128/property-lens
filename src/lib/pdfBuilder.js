@@ -184,19 +184,30 @@ async function drawSpecialCards(doc, rooms, items, photos, y) {
     // Photos (aspect-ratio correct, up to 4)
     const roomPhotos = (photos || []).filter(p => p.roomId === room.id).slice(0, 4);
     if (roomPhotos.length) {
-      const maxW = (CW - (roomPhotos.length - 1) * 3) / Math.min(roomPhotos.length, 4);
-      const maxH = 40;
-      const compressed = await Promise.all(roomPhotos.map(p => compressForPdf(p.dataUrl, 600, 0.85)));
-      const rowH = Math.min(maxH, ...compressed.map(c => maxW / c.ar));
-      y = pb(doc, y, rowH + 4);
-      let px = M;
-      for (const { dataUrl: cd, ar } of compressed) {
-        const dw = maxW;
-        const dh = Math.min(maxH, dw / ar);
-        try { doc.addImage(cd, 'JPEG', px, y, dw, dh); } catch {}
-        px += dw + 3;
+      const colW = (CW - (Math.min(roomPhotos.length, 2) - 1) * 3) / Math.min(roomPhotos.length, 2);
+      const MAX_H = 130;
+      const compressed = await Promise.all(roomPhotos.map(p => compressForPdf(p.dataUrl, 1600, 0.92)));
+      // Lay out photos in rows of 2
+      for (let i = 0; i < compressed.length; i += 2) {
+        const batch = compressed.slice(i, i + 2);
+        const perW = batch.length === 1 ? CW : colW;
+        // Calculate each photo's display dimensions (never stretch — reduce width if needed)
+        const dims = batch.map(({ ar }) => {
+          let dw = perW, dh = dw / ar;
+          if (dh > MAX_H) { dh = MAX_H; dw = dh * ar; }
+          return { dw, dh };
+        });
+        const rowH = Math.max(...dims.map(d => d.dh));
+        y = pb(doc, y, rowH + 4);
+        let px = M;
+        for (let j = 0; j < batch.length; j++) {
+          const { dataUrl: cd } = batch[j];
+          const { dw, dh } = dims[j];
+          try { doc.addImage(cd, 'JPEG', px, y, dw, dh); } catch {}
+          px += perW + 3;
+        }
+        y += rowH + 5;
       }
-      y += rowH + 5;
     }
 
     // Meter fields
@@ -326,8 +337,8 @@ function drawItemsTable(doc, items, yStart) {
 async function drawRooms(doc, completedRooms, items, photos, y) {
   if (!completedRooms.length) return y;
 
-  const MAX_PH = 58;  // max photo height mm
-  const GAP    = 4;   // gap between photos
+  const GAP    = 4;    // gap between side-by-side photos
+  const MAX_PH = 130;  // generous height cap — portrait photos stay tall
 
   for (const room of completedRooms) {
     doc.addPage(); y = 20;
@@ -354,15 +365,23 @@ async function drawRooms(doc, completedRooms, items, photos, y) {
     if (overviewPhotos.length > 0) {
       for (let i = 0; i < overviewPhotos.length; i += 2) {
         const batch      = overviewPhotos.slice(i, i + 2);
-        const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl)));
+        const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl, 1600, 0.92)));
         const perW       = batch.length === 1 ? CW : (CW - GAP) / 2;
-        const rowH       = Math.min(MAX_PH, Math.max(...compressed.map(c => perW / c.ar)));
+
+        // Compute per-photo dims maintaining aspect ratio — never stretch
+        const dims = compressed.map(({ ar }) => {
+          let dw = perW, dh = dw / ar;
+          if (dh > MAX_PH) { dh = MAX_PH; dw = dh * ar; }
+          return { dw, dh };
+        });
+        const rowH = Math.max(...dims.map(d => d.dh));
 
         y = pb(doc, y, rowH + 4);
         let px = M;
-        for (const { dataUrl: cd, ar } of compressed) {
-          const dh = Math.min(MAX_PH, perW / ar);
-          try { doc.addImage(cd, 'JPEG', px, y, perW, dh); } catch {}
+        for (let j = 0; j < batch.length; j++) {
+          const { dataUrl: cd } = batch[j];
+          const { dw, dh } = dims[j];
+          try { doc.addImage(cd, 'JPEG', px, y, dw, dh); } catch {}
           px += perW + GAP;
         }
         y += rowH + 5;
@@ -400,21 +419,30 @@ async function drawRooms(doc, completedRooms, items, photos, y) {
         tc(doc, C.dark); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
         doc.text(item.name, M, y); y += 4;
 
-        // Up to 4 photos per row
-        const batch = iPhotos.slice(0, 4);
-        const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl, 600, 0.85)));
-        const perW = (CW - (batch.length - 1) * 3) / batch.length;
-        const MAX_DEFECT_H = 40;
-        const rowH = Math.min(MAX_DEFECT_H, Math.max(...compressed.map(c => perW / c.ar)));
-
-        y = pb(doc, y, rowH + 5);
-        let px = M;
-        for (const { dataUrl: cd, ar } of compressed) {
-          const dh = Math.min(MAX_DEFECT_H, perW / ar);
-          try { doc.addImage(cd, 'JPEG', px, y, perW, dh); } catch {}
-          px += perW + 3;
+        // Up to 4 photos per row, 2-up layout
+        const allItemPhotos = iPhotos.slice(0, 4);
+        const MAX_ITEM_H = 100;
+        for (let pi = 0; pi < allItemPhotos.length; pi += 2) {
+          const batch = allItemPhotos.slice(pi, pi + 2);
+          const compressed = await Promise.all(batch.map(p => compressForPdf(p.dataUrl, 1600, 0.92)));
+          const perW = batch.length === 1 ? CW : (CW - 3) / 2;
+          const dims = compressed.map(({ ar }) => {
+            let dw = perW, dh = dw / ar;
+            if (dh > MAX_ITEM_H) { dh = MAX_ITEM_H; dw = dh * ar; }
+            return { dw, dh };
+          });
+          const rowH = Math.max(...dims.map(d => d.dh));
+          y = pb(doc, y, rowH + 5);
+          let px = M;
+          for (let j = 0; j < batch.length; j++) {
+            const { dataUrl: cd } = batch[j];
+            const { dw, dh } = dims[j];
+            try { doc.addImage(cd, 'JPEG', px, y, dw, dh); } catch {}
+            px += perW + 3;
+          }
+          y += rowH + 4;
         }
-        y += rowH + 6;
+        y += 2;
       }
     }
 
