@@ -84,6 +84,7 @@ export default function RoomEditor({ inspectionId, roomId, onBack }) {
     await db.items.add({
       id, roomId, inspectionId,
       name: '', isDefault: false, sortOrder: items.length,
+      quantity: '', description: '',
       condition: null, cleanliness: null, defects: '', repairNotes: '',
       isRated: false, aiSuggested: false, aiAccepted: false,
       createdAt: now, updatedAt: now,
@@ -550,6 +551,7 @@ function ItemPicker({ preset, roomId, inspectionId, onDone }) {
         await db.items.add({
           id: crypto.randomUUID(), roomId, inspectionId,
           name: label, isDefault: true, sortOrder: sortOrder++,
+          quantity: '', description: '',
           condition: null, cleanliness: null, defects: '', repairNotes: '',
           isRated: false, aiSuggested: false, aiAccepted: false,
           createdAt: now, updatedAt: now,
@@ -559,6 +561,7 @@ function ItemPicker({ preset, roomId, inspectionId, onDone }) {
           await db.items.add({
             id: crypto.randomUUID(), roomId, inspectionId,
             name: `${label} ${i}`, isDefault: true, sortOrder: sortOrder++,
+            quantity: '', description: '',
             condition: null, cleanliness: null, defects: '', repairNotes: '',
             isRated: false, aiSuggested: false, aiAccepted: false,
             createdAt: now, updatedAt: now,
@@ -937,6 +940,30 @@ function ItemCard({ item, onChange, onRemove, roomId, inspectionId }) {
           );
         })}
       </div>
+
+      {/* Quantity & Description — optional, shown once item has a name */}
+      {item.name?.trim() && (
+        <div className="space-y-1.5">
+          <div className="relative">
+            <input
+              className="w-full px-3 py-1.5 pr-10 rounded-lg text-xs bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-gold/60"
+              placeholder="Quantity — e.g. 2 x double-glazed, white wood frames"
+              value={item.quantity || ''}
+              onChange={e => onChange({ quantity: e.target.value })}
+            />
+            <MicButton value={item.quantity || ''} onAppend={v => onChange({ quantity: v })} className="absolute top-0 right-0.5 scale-75" />
+          </div>
+          <div className="relative">
+            <input
+              className="w-full px-3 py-1.5 pr-10 rounded-lg text-xs bg-gray-50 dark:bg-surface-card border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-gold/60"
+              placeholder="Description — e.g. Plaster painted white with LED spots"
+              value={item.description || ''}
+              onChange={e => onChange({ description: e.target.value })}
+            />
+            <MicButton value={item.description || ''} onAppend={v => onChange({ description: v })} className="absolute top-0 right-0.5 scale-75" />
+          </div>
+        </div>
+      )}
 
       {/* Defect description — only when condition is not Good/Excellent */}
       {isDefective && (

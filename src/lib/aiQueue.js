@@ -115,14 +115,26 @@ async function _processEntry(entry) {
         for (const suggestion of result.items) {
           const sugName = suggestion.name?.toLowerCase() || '';
           const match   = items.find(i => i.name?.toLowerCase().includes(sugName) || sugName.includes(i.name?.toLowerCase() || ''));
-          if (match && suggestion.condition) {
-            await db.items.update(match.id, {
-              aiSuggested:          true,
-              aiSuggestedCondition: suggestion.condition,
-              aiSuggestedNotes:     suggestion.notes || '',
-              updatedAt:            now(),
-            });
+          if (!match) continue;
+
+          const patch = { updatedAt: now() };
+
+          // Auto-apply quantity + description if AI returned them and fields are currently empty
+          if (suggestion.quantity?.trim() && !match.quantity?.trim()) {
+            patch.quantity = suggestion.quantity.trim();
           }
+          if (suggestion.description?.trim() && !match.description?.trim()) {
+            patch.description = suggestion.description.trim();
+          }
+
+          // Condition stays as a suggestion (agent must confirm)
+          if (suggestion.condition) {
+            patch.aiSuggested          = true;
+            patch.aiSuggestedCondition = suggestion.condition;
+            patch.aiSuggestedNotes     = suggestion.notes || '';
+          }
+
+          await db.items.update(match.id, patch);
         }
       }
 

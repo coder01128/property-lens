@@ -66,6 +66,10 @@ export async function analyzeRoomPhotos(photos, context) {
     },
   }));
 
+  const itemList = context.itemNames?.length
+    ? `\n\nInspection items for this room: ${context.itemNames.join(', ')}`
+    : '';
+
   const promptText = `You are an experienced South African property inspector conducting a ${context.inspectionType} inspection.
 
 Analyse the ${batch.length} overview photo(s) of this ${context.roomType} and return ONLY a valid JSON object — no markdown, no explanation:
@@ -74,15 +78,28 @@ Analyse the ${batch.length} overview photo(s) of this ${context.roomType} and re
   "overallCondition": "Excellent | Good | Fair | Poor | Damaged",
   "confidence": 0.0,
   "notes": "General condition summary",
-  "items": []
+  "items": [
+    {
+      "name": "item name exactly as provided",
+      "quantity": "e.g. 1 x white ceramic, or 4 x LED ceiling spots",
+      "description": "physical description, e.g. Plaster painted white with minor scuffs",
+      "condition": "Good | Fair | Poor | Damaged | N/A",
+      "notes": "specific defect or comment, empty string if none"
+    }
+  ]
 }
 
 Rules:
 - overallCondition must be exactly one of: Excellent, Good, Fair, Poor, Damaged
 - confidence is a float 0.0–1.0 reflecting how clearly the condition is visible
-- notes must be 2-3 sentences describing the overall room condition, cleanliness, and any notable defects, stains, cracks, or wear visible in the photos
-- items must always be an empty array []
-- Use South African English spelling`;
+- notes (top level) must be 2-3 sentences describing the overall room condition, cleanliness, and any notable defects, stains, cracks, or wear visible in the photos
+- items: include only items that are clearly visible in the photos — omit any you cannot assess
+- item name must match one of the provided inspection items exactly
+- item quantity: concise count and type (e.g. "2 x double-glazed, white wood frames")
+- item description: brief physical description of the item as observed
+- item condition must be exactly one of: Good, Fair, Poor, Damaged, N/A
+- item notes: describe specific defects only; use empty string if condition is Good
+- Use South African English spelling${itemList}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

@@ -271,10 +271,15 @@ function drawItemsTable(doc, items, yStart) {
   for (let ri = 0; ri < items.length; ri++) {
     const item = items[ri];
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-    const nameLines  = doc.splitTextToSize(item.name   || '', TC.item.w  - PAD * 2);
+    const nameLines  = doc.splitTextToSize(item.name || '', TC.item.w - PAD * 2);
+    const qd = [item.quantity, item.description].filter(s => s?.trim()).join('  ·  ');
+    doc.setFontSize(7.5);
+    const qdLines = qd ? doc.splitTextToSize(qd, TC.item.w - PAD * 2) : [];
+    doc.setFontSize(8.5);
     const defects    = item.defects?.trim() || '';
     const noteLines  = defects ? doc.splitTextToSize(defects, TC.notes.w - PAD * 2) : [];
-    const rowH = Math.max(MIN_ROW, Math.max(nameLines.length, Math.max(noteLines.length, 1)) * LINE_H + PAD * 2);
+    const itemTextLines = nameLines.length + qdLines.length;
+    const rowH = Math.max(MIN_ROW, Math.max(itemTextLines, Math.max(noteLines.length, 1)) * LINE_H + PAD * 2);
 
     // Page break — redraw header on new page
     if (y + rowH > 278) {
@@ -298,8 +303,13 @@ function drawItemsTable(doc, items, yStart) {
     const textY = y + PAD + 3.2;
 
     // Item name
-    tc(doc, C.body); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    tc(doc, C.body); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
     doc.text(nameLines, TC.item.x + PAD, textY);
+    // Quantity + description sub-line (grey italic)
+    if (qdLines.length) {
+      tc(doc, C.muted); doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5);
+      doc.text(qdLines, TC.item.x + PAD, textY + nameLines.length * LINE_H);
+    }
 
     // Condition — colored, bold
     if (item.condition) {
