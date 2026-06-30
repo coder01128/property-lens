@@ -1,36 +1,39 @@
 {
   "projectName": "Property Lens",
-  "version": "0.3.0",
-  "lastUpdated": "2026-03-16T16:00:00Z",
-  "currentPhase": "MVP Polish — UX & PDF Refinement",
-  "summary": "Core inspection flow complete with room item picker, AI vision, PDF generation, and special cards. Tap-driven design throughout to minimise inspector input time.",
+  "version": "0.3.2",
+  "lastUpdated": "2026-06-30T17:30:00Z",
+  "currentPhase": "MVP Polish — Landing Page + /app Subpath",
+  "summary": "Split into static landing page at / and React PWA at /app/. Vite base='/app/', SW scoped to /app/, manifest start_url+scope updated, icons regenerated from p-lens-icon.png source.",
   "techStack": "React 18 + Vite 5 PWA, React Router v7, Tailwind CSS v3, Dexie.js v4, jsPDF, Claude Haiku 4.5, Nominatim, Web Speech API",
   "recentChanges": [
-    "Room item picker: 2-col tap-to-add grid on first room visit, Let's Go seeds items",
-    "Keys section: card grid with count tracking",
-    "Special rooms: dedicated layouts, 1 photo min, no AI",
-    "PDF: one room per page, special card photos embedded",
-    "Section headings: gold + underlined + 1.5x",
-    "Mic: 1.5x larger, always gold",
-    "Generate Report: solid gold button",
-    "Google Maps key added to Vercel (pending GCloud config)"
+    "vite.config.js: base='/app/', outDir='dist/app'",
+    "index.html: manifest and favicon links made relative (no leading slash)",
+    "public/manifest.json: start_url='/app/', scope='/app/', icon paths updated to /app/icons/...",
+    "public/sw.js: PRECACHE and path handlers scoped to /app/, cache version bumped to pl-shell-v2",
+    "src/main.jsx: SW registered at /app/sw.js with scope /app/",
+    "vercel.json: rewrite scoped to /app/ only (landing page served as static dist/index.html)",
+    "generate-icons.cjs: rewritten to resize p-lens-icon.png via canvas loadImage into 192/512/32px PNGs",
+    "landing/index.html: static dark-theme landing page created",
+    "scripts/copy-landing.js: postbuild copies landing to dist/index.html",
+    "package.json: build script appends '&& node scripts/copy-landing.js'"
   ],
   "blockers": [
-    "Google Maps Places: needs GCloud billing + referrer config",
+    "Google Maps Places: needs GCloud billing + referrer config before switching from Nominatim",
     "Anthropic key needs server-side proxy before production",
     "Supabase sync not configured"
   ],
   "nextSteps": [
-    "Test room picker on mobile",
-    "Add custom item input to picker grid",
+    "Deploy to Vercel and verify /app/ loads PWA, / loads landing page",
+    "Add favicon to landing page (copy from /app/icons/favicon.png or host at root)",
+    "Test PWA install prompt from /app/ on mobile",
     "Phase 2: Supabase auth + cloud sync",
     "Phase 2: server-side Anthropic proxy"
   ],
   "metrics": {
     "componentsBuilt": 35,
     "screensImplemented": 7,
-    "ticketsTotal": 11,
-    "ticketsDone": 11,
-    "openIssues": 3
+    "ticketsTotal": 12,
+    "ticketsDone": 12,
+    "openIssues": 2
   }
 }

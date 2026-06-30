@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/copy-landing.js",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
     "autoprefixer": "^10.4.27",
+    "canvas": "^3.2.1",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
     "jspdf": "^4.2.0",

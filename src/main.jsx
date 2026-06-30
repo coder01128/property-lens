@@ -17,7 +17,7 @@ window.addEventListener("online", () => { processQueue(); syncAll(); });
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("/sw.js")
+      .register("/app/sw.js", { scope: "/app/" })
       .catch((err) => console.warn("SW registration failed:", err));
   });
 }
