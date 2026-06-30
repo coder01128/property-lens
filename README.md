@@ -1,4 +1,4 @@
-# Inspect-a-Home
+# Property Lens
 
 A **simplified home inspection PWA** MVP built as a single React component (`inventory-app.jsx`).
 

@@ -1,6 +1,6 @@
 {
   "name": "Property Lens",
-  "short_name": "PropertyLens",
+  "short_name": "Property Lens",
   "description": "AI-powered property inspection app for South African rental agents.",
   "start_url": "/app/",
   "scope": "/app/",
