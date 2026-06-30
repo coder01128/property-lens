@@ -1,21 +1,19 @@
 {
   "projectName": "Property Lens",
-  "version": "0.3.2",
-  "lastUpdated": "2026-06-30T17:30:00Z",
-  "currentPhase": "MVP Polish — Landing Page + /app Subpath",
-  "summary": "Split into static landing page at / and React PWA at /app/. Vite base='/app/', SW scoped to /app/, manifest start_url+scope updated, icons regenerated from p-lens-icon.png source.",
+  "version": "0.3.3",
+  "lastUpdated": "2026-06-30T18:00:00Z",
+  "currentPhase": "MVP Polish — PWA Install Readiness",
+  "summary": "PWA manifest confirmed HTTP 200. All install blockers addressed: stale SW cleanup, correct manifest colors/scope, favicon fix on landing page.",
   "techStack": "React 18 + Vite 5 PWA, React Router v7, Tailwind CSS v3, Dexie.js v4, jsPDF, Claude Haiku 4.5, Nominatim, Web Speech API",
   "recentChanges": [
-    "vite.config.js: base='/app/', outDir='dist/app'",
-    "index.html: manifest and favicon links made relative (no leading slash)",
-    "public/manifest.json: start_url='/app/', scope='/app/', icon paths updated to /app/icons/...",
-    "public/sw.js: PRECACHE and path handlers scoped to /app/, cache version bumped to pl-shell-v2",
-    "src/main.jsx: SW registered at /app/sw.js with scope /app/",
-    "vercel.json: rewrite scoped to /app/ only (landing page served as static dist/index.html)",
-    "generate-icons.cjs: rewritten to resize p-lens-icon.png via canvas loadImage into 192/512/32px PNGs",
-    "landing/index.html: static dark-theme landing page created",
-    "scripts/copy-landing.js: postbuild copies landing to dist/index.html",
-    "package.json: build script appends '&& node scripts/copy-landing.js'"
+    "public/manifest.json: background_color #FAF7F2, theme_color #2FA66B, description 'vision-assisted'",
+    "src/main.jsx: stale SW cleanup snippet added before register() — unregisters any scope not containing /app",
+    "landing/sw.js: root-level SW killer created — served at /sw.js via postbuild, unregisters itself on activate",
+    "scripts/copy-landing.js: now also copies landing/sw.js → dist/sw.js",
+    "landing/index.html: added <link rel='icon' href='/app/icons/favicon.png'> — fixes favicon 404 at root domain",
+    "Verified: /app/manifest.json returns HTTP 200 with correct content",
+    "Verified: dist/app/index.html href='manifest.json' (relative, correct)",
+    "Verified: vercel.json rewrite excludes sw.js and manifest.json via negative lookahead"
   ],
   "blockers": [
     "Google Maps Places: needs GCloud billing + referrer config before switching from Nominatim",
@@ -23,9 +21,8 @@
     "Supabase sync not configured"
   ],
   "nextSteps": [
-    "Deploy to Vercel and verify /app/ loads PWA, / loads landing page",
-    "Add favicon to landing page (copy from /app/icons/favicon.png or host at root)",
-    "Test PWA install prompt from /app/ on mobile",
+    "Test PWA install prompt on mobile — visit /app/ in Chrome mobile, confirm banner appears after engagement",
+    "Replace 8 placeholder phone mockups in landing/index.html with real screenshots",
     "Phase 2: Supabase auth + cloud sync",
     "Phase 2: server-side Anthropic proxy"
   ],
@@ -34,6 +31,6 @@
     "screensImplemented": 7,
     "ticketsTotal": 12,
     "ticketsDone": 12,
-    "openIssues": 2
+    "openIssues": 1
   }
 }
