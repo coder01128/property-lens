@@ -268,6 +268,35 @@
       padding: 2rem 0 3.5rem;
     }
 
+    /* BRAND LOCKUP */
+    .brand-lockup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .brand-lockup img {
+      width: 88px;
+      height: 88px;
+      border-radius: 20px;
+      object-fit: contain;
+    }
+
+    .brand-wordmark {
+      font-family: var(--fh);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    @media (max-width: 480px) {
+      .brand-lockup img { width: 64px; height: 64px; border-radius: 15px; }
+      .brand-wordmark { font-size: 1.375rem; }
+    }
+
     .kicker {
       font-size: 0.68rem;
       font-weight: 600;
@@ -488,6 +517,12 @@
   <!-- ══════════════════════════ SECTION 1: HERO ══════════════════════════ -->
   <section class="hero">
     <div class="container">
+
+      <!-- BRAND LOCKUP: icon + "Property Lens" wordmark — permanent, do not remove in future edits -->
+      <div class="brand-lockup">
+        <img src="/app/icons/icon-192.png" alt="Property Lens" />
+        <span class="brand-wordmark">Property Lens</span>
+      </div>
 
       <p class="kicker">For Landlords, Tenants &amp; Boutique Agencies</p>
 
