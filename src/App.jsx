@@ -31,7 +31,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/app">
         <Routes>
           <Route element={<AppShell />}>
             <Route index                                          element={<Dashboard />} />
