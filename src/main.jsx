@@ -13,6 +13,17 @@ window.addEventListener("load", () => { processQueue(); syncAll(); });
 // On reconnect: drain AI queue (PRD §5.2) + sync data (PRD §7.3)
 window.addEventListener("online", () => { processQueue(); syncAll(); });
 
+// Unregister any stale service workers outside /app scope
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const reg of regs) {
+      if (!reg.scope.includes('/app')) {
+        reg.unregister();
+      }
+    }
+  });
+}
+
 // Register a basic service worker for PWA support.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
