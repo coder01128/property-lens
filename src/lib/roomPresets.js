@@ -283,6 +283,56 @@ export const ROOM_PRESETS = [
   },
 ];
 
+// ─── Per-item placeholder text for Quantity + Description inputs ────────────
+// Keyed by item name (all variants used across presets).
+export const ITEM_PLACEHOLDERS = {
+  'Walls':              { qty: 'e.g. 4 walls',                    desc: 'e.g. Plaster painted white, no visible cracks' },
+  'Ceiling':            { qty: 'e.g. 1 ceiling',                  desc: 'e.g. Smooth plaster, painted white, no watermarks' },
+  'Floor':              { qty: 'e.g. 1 floor surface',            desc: 'e.g. Laminate, light scuff marks near entrance' },
+  'Floor / Tiles':      { qty: 'e.g. 1 floor surface',            desc: 'e.g. Ceramic tiles, grout intact, no chips' },
+  'Door':               { qty: 'e.g. 1 x solid wood door',        desc: 'e.g. White painted, handle functional, no damage' },
+  'Front Door':         { qty: 'e.g. 1 x solid wood door',        desc: 'e.g. White painted, handle functional, no damage' },
+  'Sliding Door':       { qty: 'e.g. 1 x aluminium sliding door', desc: 'e.g. Locks functional, track clean, no chips' },
+  'Windows':            { qty: 'e.g. 2 x double-glazed frames',   desc: 'e.g. Clear glass, locks operational, no cracks' },
+  'Curtains / Blinds':  { qty: 'e.g. 2 x curtain panels',        desc: 'e.g. White linen, good condition, no stains' },
+  'Curtains':           { qty: 'e.g. 2 x curtain panels',        desc: 'e.g. White linen, good condition, no stains' },
+  'Blinds':             { qty: 'e.g. 1 x roller blind',          desc: 'e.g. White, fully operational, no tears' },
+  'Toilet':             { qty: 'e.g. 1 x toilet',                desc: 'e.g. White ceramic, seat intact, flushes correctly' },
+  'Bath':               { qty: 'e.g. 1 x bathtub',               desc: 'e.g. White acrylic, no chips or cracks' },
+  'Shower / Bath':      { qty: 'e.g. 1 x shower enclosure',      desc: 'e.g. Glass panel, no chips or mould, drain clear' },
+  'Shower':             { qty: 'e.g. 1 x shower enclosure',      desc: 'e.g. Glass panel, no chips or mould, drain clear' },
+  'Shower Screen / Door': { qty: 'e.g. 1 x glass panel',         desc: 'e.g. Frameless, no chips, seal intact' },
+  'Basin':              { qty: 'e.g. 1 x basin with vanity',     desc: 'e.g. White ceramic, taps functional, no cracks' },
+  'Basin / Vanity':     { qty: 'e.g. 1 x basin with vanity',     desc: 'e.g. White ceramic, taps functional, no cracks' },
+  'Geyser':             { qty: 'e.g. 1 x 150L geyser',          desc: 'e.g. Mounted in roof, no visible leaks' },
+  'Light Fixtures':     { qty: 'e.g. 2 x ceiling lights',        desc: 'e.g. Functional, no exposed wiring' },
+  'Light Fitting':      { qty: 'e.g. 2 x ceiling lights',        desc: 'e.g. Functional, no exposed wiring' },
+  'Outdoor Light':      { qty: 'e.g. 1 x wall-mounted light',    desc: 'e.g. Functional, weatherproof fitting' },
+  'Power Points':       { qty: 'e.g. 4 x double sockets',        desc: 'e.g. White plastic, all functional, no damage' },
+  'Plug Points':        { qty: 'e.g. 4 x double sockets',        desc: 'e.g. White plastic, all functional, no damage' },
+  'Built-in Cupboards': { qty: 'e.g. 2 x built-in wardrobes',    desc: 'e.g. White MDF, hinges intact, no shelf damage' },
+  'Cupboards':          { qty: 'e.g. 2 x built-in wardrobes',    desc: 'e.g. White MDF, hinges intact, no shelf damage' },
+  'Built-in Shelving':  { qty: 'e.g. 3 x shelves',               desc: 'e.g. White painted MDF, no warping or damage' },
+  'Kitchen Units':      { qty: 'e.g. 6 x base and wall units',   desc: 'e.g. White melamine, doors aligned, no water damage' },
+  'Countertop':         { qty: 'e.g. 1 x countertop run',        desc: 'e.g. Granite, no chips or stains' },
+  'Countertops':        { qty: 'e.g. 1 x countertop run',        desc: 'e.g. Granite, no chips or stains' },
+  'Sink':               { qty: 'e.g. 1 x stainless steel sink',  desc: 'e.g. Double basin, drain clear, no rust' },
+  'Stove / Hob':        { qty: 'e.g. 1 x 4-plate electric hob', desc: 'e.g. All plates functional, no cracks to surface' },
+  'Hob/Stove':          { qty: 'e.g. 1 x 4-plate electric hob', desc: 'e.g. All plates functional, no cracks to surface' },
+  'Oven':               { qty: 'e.g. 1 x built-in oven',         desc: 'e.g. Functional, interior clean, seals intact' },
+  'Extractor Fan':      { qty: 'e.g. 1 x extractor',            desc: 'e.g. Functional, filter clean, no damage' },
+  'Tiles / Splashback': { qty: 'e.g. 1 x splashback panel',     desc: 'e.g. White subway tile, grout intact, no chips' },
+  'Tiles':              { qty: 'e.g. 1 x tiled surface',         desc: 'e.g. Ceramic, grout intact, no loose or cracked tiles' },
+  'Mirror':             { qty: 'e.g. 1 x wall mirror',           desc: 'e.g. No chips or silver fade, secure fixing' },
+  'Towel Rail':         { qty: 'e.g. 2 x chrome towel rails',   desc: 'e.g. Securely mounted, no rust or damage' },
+  'Towel Rails':        { qty: 'e.g. 2 x chrome towel rails',   desc: 'e.g. Securely mounted, no rust or damage' },
+  'Security Gate':      { qty: 'e.g. 1 x security gate',        desc: 'e.g. Steel, lock functional, no rust' },
+  'Garage Door':        { qty: 'e.g. 1 x roller garage door',   desc: 'e.g. No dents, opens fully, manual release intact' },
+  'Garage Door Motor':  { qty: 'e.g. 1 x motor unit',           desc: 'e.g. Functional, remote paired, limits set correctly' },
+  'Plumbing Connections': { qty: 'e.g. 1 x hot + cold supply',  desc: 'e.g. No leaks, stop valves operational' },
+  'Railing / Balustrade': { qty: 'e.g. 1 x balustrade run',     desc: 'e.g. Secure, no wobble, no rust or peeling paint' },
+};
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 /** Look up a preset by typeKey */
