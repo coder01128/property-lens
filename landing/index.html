@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0b1220" />
+  <meta name="theme-color" content="#EFE8D8" />
   <title>Property Lens — AI-assisted property inspections for South African landlords and tenants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@700&display=swap" rel="stylesheet" />
   <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
   </script>
@@ -13,184 +16,619 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0b1220;
-      --surface:  #111827;
-      --border:   #1e2d40;
-      --gold:     #c8a96e;
-      --gold-dim: #a88a52;
-      --text:     #e8eaf0;
-      --muted:    #8892a4;
+      --parchment: #EFE8D8;
+      --manila:    #E3D9BF;
+      --ink:       #2B2620;
+      --muted:     #6B6256;
+      --green:     #2F5233;
+      --red:       #A13D2D;
+      --ff-serif:  'IBM Plex Serif', Georgia, serif;
+      --ff-sans:   'IBM Plex Sans', system-ui, Arial, sans-serif;
+      --ff-mono:   'IBM Plex Mono', 'Courier New', monospace;
     }
 
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, ui-sans-serif, Arial, sans-serif;
+    html {
+      background: var(--parchment);
+      color: var(--ink);
+      font-family: var(--ff-sans);
       -webkit-font-smoothing: antialiased;
     }
 
     body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100dvh;
-      padding: max(2.5rem, env(safe-area-inset-top) + 1.5rem) 1.25rem max(2rem, env(safe-area-inset-bottom) + 1rem);
+      padding-top: max(24px, env(safe-area-inset-top));
+      padding-bottom: max(32px, env(safe-area-inset-bottom));
     }
 
-    .shell {
+    .container {
       width: 100%;
-      max-width: 560px;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
     }
 
-    .brand {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-    }
+    /* ── SHARED COMPONENTS ───────────────────────────────────────────────── */
 
-    .brand-icon {
-      width: 144px;
-      height: 144px;
-      border-radius: 28px;
-      object-fit: contain;
-    }
-
-    .brand-name {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-      color: var(--gold);
-    }
-
-    .hero {
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-    }
-
-    h1 {
-      font-size: clamp(1.75rem, 5vw, 2.75rem);
-      font-weight: 700;
-      line-height: 1.1;
-      letter-spacing: -0.02em;
-      color: var(--text);
-    }
-
-    .tagline {
-      font-size: 1rem;
+    .section-kicker {
+      font-family: var(--ff-mono);
+      font-size: 0.6rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
       color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .cta {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      align-items: flex-start;
+      margin-bottom: 1.75rem;
     }
 
     .btn-launch {
       display: inline-block;
-      padding: 0.85rem 2rem;
-      background: var(--gold);
-      color: #0b1220;
+      padding: 0.8rem 1.75rem;
+      background: var(--green);
+      color: #fff;
+      font-family: var(--ff-sans);
       font-size: 1rem;
-      font-weight: 700;
+      font-weight: 600;
       text-decoration: none;
-      border-radius: 8px;
+      border-radius: 5px;
       letter-spacing: 0.01em;
-      transition: background 0.15s;
+      border: 2px solid transparent;
     }
 
-    .btn-launch:hover {
-      background: var(--gold-dim);
+    @media (prefers-reduced-motion: no-preference) {
+      .btn-launch { transition: background 0.15s, box-shadow 0.15s; }
+      .btn-launch:hover {
+        background: #234020;
+        box-shadow: 0 4px 16px rgba(47, 82, 51, 0.3);
+      }
     }
 
-    .cta-note {
-      font-size: 0.78rem;
+    .btn-launch:focus-visible {
+      outline: 3px solid var(--green);
+      outline-offset: 3px;
+    }
+
+    /* ── PHONE FRAME ────────────────────────────────────────────────────── */
+
+    .phone {
+      background: #1c1612;
+      border-radius: 28px;
+      padding: 10px;
+      position: relative;
+      display: inline-block;
+      box-shadow:
+        0 16px 48px rgba(43,38,32,0.2),
+        0 4px 12px rgba(43,38,32,0.12);
+    }
+
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 44px;
+      height: 5px;
+      background: #0e0b08;
+      border-radius: 3px;
+      z-index: 2;
+    }
+
+    .phone-screen {
+      background: var(--parchment);
+      border-radius: 20px;
+      overflow: hidden;
+      padding: 26px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .phone.hero .phone-screen  { width: 158px; height: 298px; }
+    .phone.step .phone-screen  { width: 128px; height: 220px; }
+
+    /* ── PLACEHOLDER UI BLOCKS ──────────────────────────────────────────── */
+
+    .ui-bar {
+      height: 9px;
+      border-radius: 4px;
+      background: rgba(43,38,32,0.13);
+      flex-shrink: 0;
+    }
+    .ui-bar.h2    { height: 15px; }
+    .ui-bar.short { width: 40%; }
+    .ui-bar.med   { width: 68%; }
+    .ui-bar.lg    { width: 88%; }
+
+    .ui-photo {
+      border-radius: 6px;
+      background: var(--manila);
+      border: 1px solid rgba(43,38,32,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .ui-photo::after {
+      content: '▣';
+      font-size: 1.5rem;
+      color: rgba(43,38,32,0.15);
+    }
+
+    .ui-sig {
+      border-radius: 4px;
+      background: rgba(43,38,32,0.05);
+      border: 1px dashed rgba(43,38,32,0.2);
+      flex-shrink: 0;
+    }
+
+    .ui-btn {
+      height: 24px;
+      border-radius: 12px;
+      background: var(--green);
+      opacity: 0.22;
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .ui-spacer { flex: 1; }
+
+    /* ── SECTION 1: HERO ────────────────────────────────────────────────── */
+
+    .hero {
+      padding: 2rem 0 3rem;
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .kicker {
+      font-family: var(--ff-mono);
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-top: 0.35rem;
+    }
+
+    .stamp {
+      font-family: var(--ff-mono);
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--red);
+      border: 2.5px solid var(--red);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      transform: rotate(-8deg);
+      transform-origin: center;
+      display: inline-block;
+      white-space: nowrap;
+      flex-shrink: 0;
+      /* double-line border: outer ring via box-shadow with gap */
+      box-shadow:
+        0 0 0 3px var(--parchment),
+        0 0 0 5.5px var(--red),
+        2px 4px 14px rgba(161, 61, 45, 0.2);
+      filter: url(#stamp-rough);
+      opacity: 0.88;
+    }
+
+    .hero h1 {
+      font-family: var(--ff-serif);
+      font-size: clamp(2rem, 6vw, 2.75rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 1rem;
+    }
+
+    .hero .tagline {
+      font-size: 1rem;
+      line-height: 1.65;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-phone-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 2.5rem;
+    }
+
+    /* ── SECTION 2: HOW IT WORKS ────────────────────────────────────────── */
+
+    .steps {
+      background: var(--manila);
+      padding: 3rem 0;
+      border-top: 1px solid rgba(43,38,32,0.1);
+      border-bottom: 1px solid rgba(43,38,32,0.1);
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 1.1rem;
+      align-items: start;
+    }
+
+    .step-num {
+      font-family: var(--ff-mono);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      padding-top: 0.1rem;
+    }
+
+    .step-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .step-text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--ink);
+    }
+
+    .step-text strong { font-weight: 600; }
+
+    /* ── SECTION 3: THE RECORD ──────────────────────────────────────────── */
+
+    .gallery {
+      padding: 3rem 0;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .gallery-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .gallery-card:nth-child(1) .photo-card { transform: rotate(-3deg); }
+    .gallery-card:nth-child(2) .photo-card { transform: rotate(2deg); }
+    .gallery-card:nth-child(3) .photo-card { transform: rotate(-2deg); }
+    .gallery-card:nth-child(4) .photo-card { transform: rotate(3deg); }
+
+    .photo-card {
+      background: var(--manila);
+      border-radius: 3px;
+      padding: 8px 8px 22px;
+      width: 100%;
+      box-shadow:
+        3px 4px 16px rgba(43,38,32,0.2),
+        1px 1px 4px rgba(43,38,32,0.08);
+      position: relative;
+    }
+
+    /* photo corner mount details */
+    .photo-card::before,
+    .photo-card::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 1px;
+      background: rgba(43,38,32,0.1);
+    }
+    .photo-card::before { top: 5px; left: 5px; }
+    .photo-card::after  { top: 5px; right: 5px; }
+
+    .photo-inner {
+      background: var(--parchment);
+      border-radius: 1px;
+      aspect-ratio: 3 / 4;
+      display: flex;
+      flex-direction: column;
+      padding: 7px;
+      gap: 5px;
+      overflow: hidden;
+    }
+
+    .gallery-caption {
+      font-family: var(--ff-mono);
+      font-size: 0.55rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
       color: var(--muted);
     }
 
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
+    /* ── SECTION 4: WHY IT HOLDS UP ─────────────────────────────────────── */
+
+    .trust {
+      background: var(--manila);
+      padding: 3rem 0;
+      border-top: 1px solid rgba(43,38,32,0.1);
+      border-bottom: 1px solid rgba(43,38,32,0.1);
     }
 
-    .features {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-
-    .feature {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.1rem;
+    .trust-points {
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
+      gap: 1.25rem;
     }
 
-    .feature-icon {
-      font-size: 1.25rem;
-      line-height: 1;
+    .trust-point {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--muted);
+      padding-left: 1rem;
+      border-left: 2px solid rgba(43,38,32,0.2);
     }
 
-    .feature-label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text);
-      line-height: 1.3;
+    /* ── SECTION 5: CTA + FOOTER ────────────────────────────────────────── */
+
+    .cta-footer {
+      padding: 3rem 0 2.5rem;
+      text-align: center;
     }
 
-    @media (max-width: 400px) {
-      .features { grid-template-columns: 1fr; }
+    .footer-note {
+      font-family: var(--ff-mono);
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 1rem;
+      letter-spacing: 0.05em;
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="brand">
-      <img class="brand-icon" src="/app/icons/icon-192.png" alt="Property Lens icon" />
-      <span class="brand-name">Property Lens</span>
-    </div>
 
-    <div class="hero">
+  <!-- SVG filter for worn/irregular stamp edge — progressive enhancement -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+    <defs>
+      <filter id="stamp-rough" x="-15%" y="-15%" width="130%" height="130%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" seed="5" stitchTiles="stitch" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+
+  <!-- ═══════════════════════════ SECTION 1: HERO ══════════════════════════ -->
+  <section class="hero">
+    <div class="container">
+
+      <div class="hero-top">
+        <p class="kicker">PROPERTY LENS — INSPECTION RECORD</p>
+        <div class="stamp" aria-label="On Record">ON RECORD</div>
+      </div>
+
       <h1>Document the property.<br>Avoid the dispute.</h1>
-      <p class="tagline">AI-assisted move-in and move-out inspections for South African landlords and tenants — time-stamped photos, condition checklists, and signed reports that hold up when a deposit dispute happens.</p>
-    </div>
 
-    <div class="cta">
+      <p class="tagline">
+        AI-assisted move-in and move-out inspections for South African landlords and tenants — time-stamped photos, condition checklists, and signed reports that hold up when a deposit dispute happens.
+      </p>
+
       <a class="btn-launch" href="/app">Launch App</a>
-      <span class="cta-note">Works offline. No install required.</span>
-    </div>
 
-    <hr class="divider" />
+      <div class="hero-phone-wrap">
+        <!-- TODO: replace with real screenshot -->
+        <div class="phone hero">
+          <div class="phone-screen">
+            <div class="ui-bar h2" style="width:65%"></div>
+            <div class="ui-bar short" style="margin-top:2px"></div>
+            <div style="height:4px"></div>
+            <div class="ui-photo" style="height:108px"></div>
+            <div style="height:2px"></div>
+            <div class="ui-bar lg"></div>
+            <div class="ui-bar med"></div>
+            <div class="ui-bar short"></div>
+            <div style="height:4px"></div>
+            <div class="ui-bar lg"></div>
+            <div class="ui-bar med"></div>
+            <div class="ui-spacer"></div>
+            <div class="ui-btn"></div>
+          </div>
+        </div>
+      </div>
 
-    <div class="features">
-      <div class="feature">
-        <span class="feature-icon">🏠</span>
-        <span class="feature-label">Time-stamped room-by-room condition records</span>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">📷</span>
-        <span class="feature-label">AI-flagged photo evidence of existing damage</span>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">✍️</span>
-        <span class="feature-label">Signed off by both landlord and tenant</span>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">📄</span>
-        <span class="feature-label">PDF report ready for dispute resolution</span>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════ SECTION 2: HOW IT WORKS ════════════════════════ -->
+  <section class="steps">
+    <div class="container">
+      <p class="section-kicker">HOW IT WORKS</p>
+
+      <div class="step-list">
+
+        <div class="step">
+          <span class="step-num">01</span>
+          <div class="step-body">
+            <p class="step-text">
+              <strong>Walk the room, snap two photos.</strong> Front-on and one corner — that's enough for the app to capture the full condition of the space.
+            </p>
+            <!-- TODO: replace with real screenshot -->
+            <div class="phone step">
+              <div class="phone-screen">
+                <div class="ui-bar h2" style="width:58%"></div>
+                <div style="height:4px"></div>
+                <div class="ui-photo" style="height:100px"></div>
+                <div class="ui-bar med"></div>
+                <div class="ui-bar short"></div>
+                <div class="ui-spacer"></div>
+                <div class="ui-btn"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">02</span>
+          <div class="step-body">
+            <p class="step-text">
+              <strong>Get an AI-written condition note in seconds.</strong> Each photo is read automatically into a plain-language description — paint, fixtures, any visible wear — so you're not typing it out room by room.
+            </p>
+            <!-- TODO: replace with real screenshot -->
+            <div class="phone step">
+              <div class="phone-screen">
+                <div class="ui-bar h2" style="width:62%"></div>
+                <div style="height:4px"></div>
+                <div class="ui-bar lg"></div>
+                <div class="ui-bar med"></div>
+                <div class="ui-bar" style="width:55%"></div>
+                <div style="height:6px"></div>
+                <div class="ui-bar lg"></div>
+                <div class="ui-bar med"></div>
+                <div class="ui-spacer"></div>
+                <div class="ui-btn"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">03</span>
+          <div class="step-body">
+            <p class="step-text">
+              <strong>Sign, export, done.</strong> Both landlord and tenant sign off in the app, and the PDF report is ready to hand over or attach to a dispute claim.
+            </p>
+            <!-- TODO: replace with real screenshot -->
+            <div class="phone step">
+              <div class="phone-screen">
+                <div class="ui-bar h2" style="width:52%"></div>
+                <div style="height:6px"></div>
+                <div class="ui-sig" style="height:72px"></div>
+                <div class="ui-bar short" style="margin-top:4px"></div>
+                <div class="ui-spacer"></div>
+                <div class="ui-btn"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
+  </section>
+
+
+  <!-- ═══════════════════════ SECTION 3: THE RECORD ════════════════════════ -->
+  <section class="gallery">
+    <div class="container">
+      <p class="section-kicker">THE RECORD</p>
+
+      <div class="gallery-grid">
+
+        <div class="gallery-card">
+          <!-- TODO: replace with real screenshot -->
+          <div class="photo-card">
+            <div class="photo-inner">
+              <div class="ui-bar h2" style="width:70%;background:rgba(43,38,32,0.18)"></div>
+              <div style="height:4px"></div>
+              <div class="ui-bar lg" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar med" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar short" style="background:rgba(43,38,32,0.11)"></div>
+              <div style="height:5px"></div>
+              <div class="ui-bar lg" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar med" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar short" style="background:rgba(43,38,32,0.11)"></div>
+              <div style="flex:1"></div>
+              <div class="ui-btn" style="opacity:0.18;width:65px"></div>
+            </div>
+          </div>
+          <span class="gallery-caption">ROOM CHECKLIST</span>
+        </div>
+
+        <div class="gallery-card">
+          <!-- TODO: replace with real screenshot -->
+          <div class="photo-card">
+            <div class="photo-inner">
+              <div class="ui-photo" style="height:45%;background:rgba(43,38,32,0.07)"></div>
+              <div style="height:5px"></div>
+              <div class="ui-bar h2" style="width:80%;background:rgba(43,38,32,0.18)"></div>
+              <div class="ui-bar lg" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar med" style="background:rgba(43,38,32,0.11)"></div>
+              <div class="ui-bar" style="width:58%;background:rgba(43,38,32,0.11)"></div>
+              <div style="flex:1"></div>
+              <div class="ui-btn" style="opacity:0.18;width:65px"></div>
+            </div>
+          </div>
+          <span class="gallery-caption">AI DESCRIPTION</span>
+        </div>
+
+        <div class="gallery-card">
+          <!-- TODO: replace with real screenshot -->
+          <div class="photo-card">
+            <div class="photo-inner">
+              <div class="ui-bar h2" style="width:55%;background:rgba(43,38,32,0.18)"></div>
+              <div style="height:6px"></div>
+              <div class="ui-sig" style="flex:2;min-height:50px"></div>
+              <div style="height:5px"></div>
+              <div class="ui-bar short" style="background:rgba(43,38,32,0.11)"></div>
+              <div style="flex:1"></div>
+              <div class="ui-btn" style="opacity:0.18;width:65px"></div>
+            </div>
+          </div>
+          <span class="gallery-caption">SIGNATURE</span>
+        </div>
+
+        <div class="gallery-card">
+          <!-- TODO: replace with real screenshot -->
+          <div class="photo-card">
+            <div class="photo-inner">
+              <div class="ui-bar h2" style="width:72%;background:rgba(43,38,32,0.18)"></div>
+              <div class="ui-bar short" style="background:rgba(43,38,32,0.1)"></div>
+              <div style="height:6px"></div>
+              <div class="ui-bar lg" style="background:rgba(43,38,32,0.1)"></div>
+              <div class="ui-bar med" style="background:rgba(43,38,32,0.1)"></div>
+              <div class="ui-bar" style="width:58%;background:rgba(43,38,32,0.1)"></div>
+              <div style="height:6px"></div>
+              <div class="ui-bar lg" style="background:rgba(43,38,32,0.1)"></div>
+              <div class="ui-bar med" style="background:rgba(43,38,32,0.1)"></div>
+              <div style="flex:1"></div>
+              <div class="ui-btn" style="opacity:0.18;width:65px"></div>
+            </div>
+          </div>
+          <span class="gallery-caption">PDF EXPORT</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ SECTION 4: WHY IT HOLDS UP ═══════════════════ -->
+  <section class="trust">
+    <div class="container">
+      <p class="section-kicker">WHY IT HOLDS UP</p>
+      <div class="trust-points">
+        <p class="trust-point">Timestamps are locked the moment a photo is taken — nothing can be back-dated after the fact.</p>
+        <p class="trust-point">Both parties sign off in the app before the report is finalised.</p>
+        <p class="trust-point">The exported PDF is built to be handed straight to a dispute resolution body or your letting agent — no formatting required.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════ SECTION 5: CTA REPEAT + FOOTER ══════════════════ -->
+  <section class="cta-footer">
+    <div class="container">
+      <a class="btn-launch" href="/app">Launch App</a>
+      <p class="footer-note">Works offline. No install required.</p>
+    </div>
+  </section>
+
 </body>
 </html>
