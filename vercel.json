@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/app",
+      "destination": "/app/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     { "source": "/app", "destination": "/app/index.html" },
     { "source": "/app/((?!assets|icons|sw\\.js|manifest\\.json|favicon\\.png).*)", "destination": "/app/index.html" }
