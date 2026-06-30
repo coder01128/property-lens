@@ -8,14 +8,28 @@ export default function AppShell() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    });
+    // Event may have already fired before React mounted
+    if (window.__installPrompt) {
+      setInstallPrompt(window.__installPrompt);
+    }
+
+    // Also listen for it in case it fires after mount
+    const handler = () => {
+      if (window.__installPrompt) {
+        setInstallPrompt(window.__installPrompt);
+      }
+    };
+
+    window.addEventListener('installpromptready', handler);
     window.addEventListener('appinstalled', () => {
       setIsInstalled(true);
       setInstallPrompt(null);
+      window.__installPrompt = null;
     });
+
+    return () => {
+      window.removeEventListener('installpromptready', handler);
+    };
   }, []);
 
   const handleInstall = async () => {
